@@ -1,0 +1,21 @@
+FROM gemma4:e2b
+TEMPLATE """
+{{- range .Messages }}
+{{- if eq .Role "user" }}
+{{- if .Images }}
+USER:
+{{- range .Images }}
+<image>{{ . }}</image>
+{{- end }}
+{{ .Content }}
+{{- else }}
+USER: {{ .Content }}
+{{- end }}
+{{- else if eq .Role "assistant" }}
+ASSISTANT: {{ .Content }}
+{{- end }}
+{{- end }}
+ASSISTANT:
+"""
+PARAMETER temperature 0.7
+PARAMETER top_p 0.9
