@@ -14,7 +14,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -55,14 +57,14 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myai.domain.model.ChatMessage
 import com.example.myai.domain.model.FileAttachment
 import com.example.myai.presentation.profile.ProfileViewModel
-import com.example.myai.util.FileProcessor
+import com.example.myai.domain.util.FileProcessor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
 fun ChatScreen(
     selectedModel: androidx.compose.runtime.State<String>,
-    viewModel: ChatViewModel = viewModel()
+    viewModel: ChatViewModel = viewModel(factory = ChatViewModelFactory())
 ) {
     // Update viewModel when selectedModel changes
     androidx.compose.runtime.LaunchedEffect(selectedModel.value) {
@@ -102,7 +104,9 @@ fun ChatScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
             // Header with colored background
             Box(
                 modifier = Modifier
@@ -149,7 +153,7 @@ fun ChatScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(16.dp),
-                contentAlignment = Alignment.BottomCenter
+                contentAlignment = Alignment.Center
             ) {
                 Card(
                     colors = CardDefaults.cardColors(

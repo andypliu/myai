@@ -1,8 +1,9 @@
 package com.example.myai.data.remote
 
 import android.util.Log
-import com.example.myai.domain.model.ChatRequest
-import com.example.myai.domain.model.ChatResponse
+import com.example.myai.data.config.ApiConfig
+import com.example.myai.data.model.ChatRequest
+import com.example.myai.data.model.ChatResponse
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -12,6 +13,10 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.concurrent.TimeUnit
 
+/**
+ * API service for Ollama HTTP communication.
+ * Handles all HTTP requests to the Ollama API.
+ */
 class OllamaApiService {
     private val client = OkHttpClient.Builder()
         .connectTimeout(60, TimeUnit.SECONDS)
@@ -22,6 +27,9 @@ class OllamaApiService {
     private val gson = Gson()
     private val jsonMediaType = "application/json".toMediaType()
 
+    /**
+     * Send a chat request to the Ollama API.
+     */
     suspend fun chat(request: ChatRequest): Result<ChatResponse> = withContext(Dispatchers.IO) {
         try {
             val jsonBody = gson.toJson(request)
@@ -30,7 +38,7 @@ class OllamaApiService {
             val requestBody = jsonBody.toRequestBody(jsonMediaType)
 
             val httpRequest = Request.Builder()
-                .url("http://10.0.2.2:11434/api/chat")
+                .url(ApiConfig.CHAT_ENDPOINT)
                 .post(requestBody)
                 .build()
 

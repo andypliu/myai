@@ -1,9 +1,9 @@
 package com.example.myai.domain.usecase
 
 import android.util.Log
+import com.example.myai.data.model.ChatRequest
+import com.example.myai.data.model.ChatRequestMessage
 import com.example.myai.domain.model.ChatMessage
-import com.example.myai.domain.model.ChatRequest
-import com.example.myai.domain.model.ChatRequestMessage
 import com.example.myai.domain.model.FileAttachment
 import com.example.myai.domain.repository.ChatRepository
 

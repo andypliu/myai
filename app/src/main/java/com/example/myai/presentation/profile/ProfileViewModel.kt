@@ -4,14 +4,15 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.myai.data.remote.OllamaModelsService
+import com.example.myai.domain.usecase.GetModelsUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class ProfileViewModel(
-    private val context: Context
+    private val context: Context,
+    private val getModelsUseCase: GetModelsUseCase
 ) : ViewModel() {
 
     private val prefs: SharedPreferences = context.getSharedPreferences("MyAIPrefs", Context.MODE_PRIVATE)
@@ -29,8 +30,6 @@ class ProfileViewModel(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
-    private val modelsService = OllamaModelsService()
-
     init {
         fetchModels()
     }
@@ -39,7 +38,7 @@ class ProfileViewModel(
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
-            modelsService.getModels()
+            getModelsUseCase()
                 .onSuccess { models ->
                     _availableModels.value = models.map { it.name }
                     // If selected model is not in the list, select the first one

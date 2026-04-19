@@ -1,4 +1,4 @@
-package com.example.myai.domain.model
+package com.example.myai.data.model
 
 data class ChatRequest(
     val model: String = "gemma4:e2b",

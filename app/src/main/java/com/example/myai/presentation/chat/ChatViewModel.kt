@@ -4,21 +4,22 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.myai.data.remote.OllamaApiService
+import com.example.myai.data.source.ChatDataSource
 import com.example.myai.data.repository.ChatRepositoryImpl
 import com.example.myai.domain.model.ChatMessage
 import com.example.myai.domain.model.FileAttachment
 import com.example.myai.domain.usecase.SendMessageUseCase
-import com.example.myai.util.FileProcessor
+import com.example.myai.domain.util.FileProcessor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.UUID
 
-class ChatViewModel : ViewModel() {
-    private val apiService = OllamaApiService()
-    private val repository = ChatRepositoryImpl(apiService)
+class ChatViewModel(
+    private val dataSource: ChatDataSource
+) : ViewModel() {
+    private val repository = ChatRepositoryImpl(dataSource)
     private val sendMessageUseCase = SendMessageUseCase(repository)
 
     private val _uiState = MutableStateFlow<ChatUiState>(ChatUiState.Idle)
