@@ -13,7 +13,7 @@ class ProfileViewModelFactory(
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(ProfileViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            val modelsRepository = ModelsRepositoryImpl(OllamaModelsService())
+            val modelsRepository = ModelsRepositoryImpl(OllamaModelsService(context))
             val getModelsUseCase = GetModelsUseCase(modelsRepository)
             return ProfileViewModel(context, getModelsUseCase) as T
         }

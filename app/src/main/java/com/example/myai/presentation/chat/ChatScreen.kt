@@ -64,7 +64,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun ChatScreen(
     selectedModel: androidx.compose.runtime.State<String>,
-    viewModel: ChatViewModel = viewModel(factory = ChatViewModelFactory())
+    viewModel: ChatViewModel
 ) {
     // Update viewModel when selectedModel changes
     androidx.compose.runtime.LaunchedEffect(selectedModel.value) {

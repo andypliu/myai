@@ -26,6 +26,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myai.presentation.chat.ChatScreen
+import com.example.myai.presentation.chat.ChatViewModel
+import com.example.myai.presentation.chat.ChatViewModelFactory
+import com.example.myai.presentation.login.LoginScreen
+import com.example.myai.presentation.login.LoginViewModel
+import com.example.myai.presentation.login.LoginViewModelFactory
 import com.example.myai.presentation.profile.ProfileScreen
 import com.example.myai.presentation.profile.ProfileViewModel
 import com.example.myai.presentation.profile.ProfileViewModelFactory
@@ -46,10 +51,28 @@ class MainActivity : ComponentActivity() {
 @PreviewScreenSizes
 @Composable
 fun MyAIApp() {
+    val context = LocalContext.current
+    val loginViewModel: LoginViewModel = viewModel(
+        factory = LoginViewModelFactory(context)
+    )
+    val isLoggedIn by loginViewModel.isLoggedIn.collectAsState()
+
+    if (!isLoggedIn) {
+        LoginScreen(viewModel = loginViewModel)
+    } else {
+        MainAppContent(onLogout = loginViewModel::logout)
+    }
+}
+
+@Composable
+fun MainAppContent(onLogout: () -> Unit) {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
     val context = LocalContext.current
     val profileViewModel: ProfileViewModel = viewModel(
         factory = ProfileViewModelFactory(context)
+    )
+    val chatViewModel: ChatViewModel = viewModel(
+        factory = ChatViewModelFactory(context)
     )
 
     NavigationSuiteScaffold(
@@ -78,13 +101,14 @@ fun MyAIApp() {
         Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
             when (currentDestination) {
                 AppDestinations.HOME -> ChatScreen(
-                    selectedModel = profileViewModel.selectedModel.collectAsState()
+                    selectedModel = profileViewModel.selectedModel.collectAsState(),
+                    viewModel = chatViewModel
                 )
                 AppDestinations.FAVORITES -> Greeting(
                     name = "Favorites",
                     modifier = Modifier.padding(innerPadding)
                 )
-                AppDestinations.PROFILE -> ProfileScreen()
+                AppDestinations.PROFILE -> ProfileScreen(onLogout = onLogout)
             }
         }
     }

@@ -14,6 +14,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
@@ -52,6 +53,7 @@ import com.example.myai.ui.theme.GreenDark
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
+    onLogout: () -> Unit = {},
     viewModel: ProfileViewModel = viewModel(
         factory = ProfileViewModelFactory(LocalContext.current)
     )
@@ -82,6 +84,12 @@ fun ProfileScreen(
                         Icon(
                             imageVector = Icons.Default.Settings,
                             contentDescription = "Settings"
+                        )
+                    }
+                    IconButton(onClick = onLogout) {
+                        Icon(
+                            imageVector = Icons.Default.Logout,
+                            contentDescription = "Logout"
                         )
                     }
                 }
