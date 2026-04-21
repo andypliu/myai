@@ -28,7 +28,7 @@ class ChatViewModel(
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
 
-    private val _selectedModel = MutableStateFlow("gemma4:e2b")
+    private val _selectedModel = MutableStateFlow("")
     val selectedModel: StateFlow<String> = _selectedModel.asStateFlow()
 
     private val _selectedAttachments = MutableStateFlow<List<FileAttachment>>(emptyList())

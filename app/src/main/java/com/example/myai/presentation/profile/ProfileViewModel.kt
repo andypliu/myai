@@ -18,7 +18,7 @@ class ProfileViewModel(
     private val prefs: SharedPreferences = context.getSharedPreferences("MyAIPrefs", Context.MODE_PRIVATE)
     private val PREF_SELECTED_MODEL = "selected_model"
 
-    private val _selectedModel = MutableStateFlow(prefs.getString(PREF_SELECTED_MODEL, "gemma4:e2b") ?: "gemma4:e2b")
+    private val _selectedModel = MutableStateFlow(prefs.getString(PREF_SELECTED_MODEL, "") ?: "")
     val selectedModel: StateFlow<String> = _selectedModel.asStateFlow()
 
     private val _availableModels = MutableStateFlow<List<String>>(emptyList())
@@ -41,32 +41,16 @@ class ProfileViewModel(
             getModelsUseCase()
                 .onSuccess { models ->
                     _availableModels.value = models.map { it.name }
-                    // If selected model is not in the list, select the first one
-                    if (!_availableModels.value.contains(_selectedModel.value) && _availableModels.value.isNotEmpty()) {
+                    // If selected model is empty or not in the list, select the first one
+                    if ((_selectedModel.value.isEmpty() || !_availableModels.value.contains(_selectedModel.value)) && _availableModels.value.isNotEmpty()) {
                         _selectedModel.value = _availableModels.value.first()
                         prefs.edit().putString(PREF_SELECTED_MODEL, _selectedModel.value).apply()
                     }
                 }
                 .onFailure { error ->
                     _error.value = error.message ?: "Failed to fetch models"
-                    // Fallback to default models if fetch fails
-                    _availableModels.value = listOf(
-                        "gemma4:e2b",
-                        "gemma4:26b",
-                        "glm-5:cloud",
-                        "minimax-m2.5:cloud",
-                        "deepseek-coder:1.3b",
-                        "qwen2.5:32b",
-                        "ds-reasoner:latest",
-                        "deepseek-r1:latest",
-                        "glm-4.7-flash:latest",
-                        "kimi-k2.5:cloud",
-                        "deepseek-r1:14b",
-                        "phi3:latest",
-                        "gemma3:270m",
-                        "deepseek-r1:32b",
-                        "deepseek-r1:7b"
-                    )
+                    // Keep empty list if fetch fails - models will be fetched on next refresh
+                    _availableModels.value = emptyList()
                 }
             _isLoading.value = false
         }
