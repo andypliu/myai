@@ -11,4 +11,5 @@ object ApiConfig {
     const val BASE_URL = "https://$HOST:$PORT"
     const val CHAT_ENDPOINT = "$BASE_URL/api/chat"
     const val MODELS_ENDPOINT = "$BASE_URL/api/tags"
+    const val ROOT_ENDPOINT = BASE_URL  // Used for basic connectivity/auth check
 }

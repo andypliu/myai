@@ -96,11 +96,11 @@ class LoginViewModel(
             val credentials = "$username:$password"
             val auth = "Basic ${Base64.encodeToString(credentials.toByteArray(), Base64.NO_WRAP)}"
 
-            Log.d("LoginViewModel", "Attempting login to: ${ApiConfig.MODELS_ENDPOINT}")
+            Log.d("LoginViewModel", "Attempting login to: ${ApiConfig.ROOT_ENDPOINT}")
             Log.d("LoginViewModel", "Authorization header: Basic ${Base64.encodeToString(credentials.toByteArray(), Base64.NO_WRAP).take(20)}...")
 
             val request = Request.Builder()
-                .url(ApiConfig.MODELS_ENDPOINT)
+                .url(ApiConfig.ROOT_ENDPOINT)
                 .header("Authorization", auth)
                 .get()
                 .build()
