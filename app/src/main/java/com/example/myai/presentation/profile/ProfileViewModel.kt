@@ -24,6 +24,9 @@ class ProfileViewModel(
     private val _availableModels = MutableStateFlow<List<String>>(emptyList())
     val availableModels: StateFlow<List<String>> = _availableModels.asStateFlow()
 
+    private val _unauthorizedModels = MutableStateFlow<Set<String>>(emptySet())
+    val unauthorizedModels: StateFlow<Set<String>> = _unauthorizedModels.asStateFlow()
+
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
@@ -57,10 +60,15 @@ class ProfileViewModel(
     }
 
     fun selectModel(model: String) {
+        if (_unauthorizedModels.value.contains(model)) return
         viewModelScope.launch {
             _selectedModel.value = model
             prefs.edit().putString(PREF_SELECTED_MODEL, model).apply()
         }
+    }
+
+    fun markModelAsUnauthorized(model: String) {
+        _unauthorizedModels.value = _unauthorizedModels.value + model
     }
 
     fun clearError() {

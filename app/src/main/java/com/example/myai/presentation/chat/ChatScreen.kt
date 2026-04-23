@@ -1,6 +1,7 @@
 package com.example.myai.presentation.chat
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -47,8 +48,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -58,17 +61,19 @@ import com.example.myai.domain.model.ChatMessage
 import com.example.myai.domain.model.FileAttachment
 import com.example.myai.presentation.profile.ProfileViewModel
 import com.example.myai.domain.util.FileProcessor
+import com.example.myai.ui.theme.GreenDark
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
 fun ChatScreen(
-    selectedModel: androidx.compose.runtime.State<String>,
+    profileViewModel: ProfileViewModel,
     viewModel: ChatViewModel
 ) {
+    val selectedModel by profileViewModel.selectedModel.collectAsState()
     // Update viewModel when selectedModel changes
-    androidx.compose.runtime.LaunchedEffect(selectedModel.value) {
-        viewModel.setSelectedModel(selectedModel.value)
+    androidx.compose.runtime.LaunchedEffect(selectedModel) {
+        viewModel.setSelectedModel(selectedModel)
     }
     val context = LocalContext.current
     val messages by viewModel.messages.collectAsState()
@@ -76,6 +81,17 @@ fun ChatScreen(
     val selectedAttachments by viewModel.selectedAttachments.collectAsState()
     val listState = rememberLazyListState()
     val newMessageId by viewModel.newMessageId.collectAsState()
+    val focusManager = LocalFocusManager.current
+
+    // Monitor for 403 error and mark model as unauthorized
+    LaunchedEffect(uiState) {
+        if (uiState is ChatUiState.Error) {
+            val error = (uiState as ChatUiState.Error).message
+            if (error.contains("subscription", ignoreCase = true)) {
+                profileViewModel.markModelAsUnauthorized(selectedModel)
+            }
+        }
+    }
 
     // File picker launcher
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -103,23 +119,41 @@ fun ChatScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                detectTapGestures(onTap = {
+                    focusManager.clearFocus()
+                })
+            }
+    ) {
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
             // Header with colored background
-            Box(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.primary)
                     .padding(16.dp)
-                    .padding(WindowInsets.statusBars.asPaddingValues())
+                    .padding(WindowInsets.statusBars.asPaddingValues()),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "Chat with AI",
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onPrimary
                 )
+                // Display selected model name in dark green
+                if (selectedModel.isNotEmpty()) {
+                    Text(
+                        text = selectedModel,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = GreenDark
+                    )
+                }
             }
 
             // Messages list

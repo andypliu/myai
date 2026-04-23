@@ -101,7 +101,7 @@ fun MainAppContent(onLogout: () -> Unit) {
         Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
             when (currentDestination) {
                 AppDestinations.HOME -> ChatScreen(
-                    selectedModel = profileViewModel.selectedModel.collectAsState(),
+                    profileViewModel = profileViewModel,
                     viewModel = chatViewModel
                 )
                 AppDestinations.FAVORITES -> Greeting(

@@ -45,6 +45,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -60,6 +61,7 @@ fun ProfileScreen(
 ) {
     val selectedModel by viewModel.selectedModel.collectAsState()
     val availableModels by viewModel.availableModels.collectAsState()
+    val unauthorizedModels by viewModel.unauthorizedModels.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
 
@@ -164,6 +166,7 @@ fun ProfileScreen(
 
                         ModelDropdown(
                             models = availableModels,
+                            unauthorizedModels = unauthorizedModels,
                             selectedModel = selectedModel,
                             onModelSelected = { viewModel.selectModel(it) },
                             isLoading = isLoading
@@ -252,6 +255,7 @@ fun ProfileScreen(
 @Composable
 fun ModelDropdown(
     models: List<String>,
+    unauthorizedModels: Set<String> = emptySet(),
     selectedModel: String,
     onModelSelected: (String) -> Unit,
     isLoading: Boolean
@@ -290,11 +294,19 @@ fun ModelDropdown(
             containerColor = MaterialTheme.colorScheme.primary
         ) {
             models.forEach { model ->
+                val isUnauthorized = unauthorizedModels.contains(model)
                 DropdownMenuItem(
-                    text = { Text(model, color = MaterialTheme.colorScheme.onPrimary) },
+                    text = { 
+                        Text(
+                            text = model, 
+                            color = if (isUnauthorized) Color.Gray else MaterialTheme.colorScheme.onPrimary 
+                        ) 
+                    },
                     onClick = {
-                        onModelSelected(model)
-                        expanded = false
+                        if (!isUnauthorized) {
+                            onModelSelected(model)
+                            expanded = false
+                        }
                     },
                     leadingIcon = if (model == selectedModel) {
                         {

@@ -83,9 +83,12 @@ class OllamaApiService(private val context: Context) {
             if (!response.isSuccessful) {
                 val errorBody = response.body?.string()
                 Log.e("OllamaApiService", "Ollama API error: ${response.code} ${response.message}, body: $errorBody")
-                return@withContext Result.failure(
-                    Exception("Ollama API error: ${response.code} ${response.message}")
-                )
+                val errorMessage = if (response.code == 403) {
+                    "This model requires a subscription. Please use other models"
+                } else {
+                    "Ollama API error: ${response.code} ${response.message}"
+                }
+                return@withContext Result.failure(Exception(errorMessage))
             }
 
             val responseBody = response.body?.string()
