@@ -10,5 +10,6 @@ data class ChatRequest(
 
 data class ChatRequestMessage(
     val role: String,
-    val content: String
+    val content: String,
+    val images: List<String>? = null
 )

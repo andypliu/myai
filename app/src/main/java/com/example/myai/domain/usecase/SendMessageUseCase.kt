@@ -16,28 +16,38 @@ class SendMessageUseCase(
         attachments: List<FileAttachment> = emptyList(),
         model: String = "gemma4:e2b"
     ): Result<String> {
-        val requestMessages = messages.map {
-            ChatRequestMessage(
-                role = if (it.isUser) "user" else "assistant",
-                content = it.content
-            )
-        } + ChatRequestMessage(role = "user", content = newMessage)
-
         // Extract base64 images from attachments
-        val images = attachments
+        val currentImages = attachments
             .filter { it.base64Data != null }
             .mapNotNull { it.base64Data }
 
-        Log.d("SendMessageUseCase", "Images count: ${images.size}, first image length: ${images.firstOrNull()?.length ?: 0}")
+        Log.d("SendMessageUseCase", "Images count: ${currentImages.size}, first image length: ${currentImages.firstOrNull()?.length ?: 0}")
+
+        val requestMessages = messages.map {
+            ChatRequestMessage(
+                role = if (it.isUser) "user" else "assistant",
+                content = it.content,
+                // If the message had attachments when it was created, we should ideally include them
+                // but for now we focus on the current message's attachments
+                images = if (it.isUser) {
+                    it.attachments?.filter { att -> att.base64Data != null }?.mapNotNull { att -> att.base64Data }
+                } else null
+            )
+        } + ChatRequestMessage(
+            role = "user", 
+            content = newMessage,
+            images = currentImages.takeIf { it.isNotEmpty() }
+        )
 
         val request = ChatRequest(
             model = model,
             messages = requestMessages,
             stream = false,
-            images = images.takeIf { it.isNotEmpty() }
+            // Keep top-level images for backward compatibility or models that expect it there
+            images = currentImages.takeIf { it.isNotEmpty() }
         )
 
-        Log.d("SendMessageUseCase", "Request: model=${request.model}, messages count=${request.messages.size}, images count=${request.images?.size ?: 0}")
+        Log.d("SendMessageUseCase", "Request: model=${request.model}, messages count=${request.messages.size}, images in last message=${currentImages.size}")
 
         return repository.sendMessage(request).map { it.message.content }
     }
