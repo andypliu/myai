@@ -7,10 +7,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.WindowInsets
@@ -35,7 +40,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -82,6 +90,15 @@ fun ChatScreen(
     val listState = rememberLazyListState()
     val newMessageId by viewModel.newMessageId.collectAsState()
     val focusManager = LocalFocusManager.current
+
+    // Detect if keyboard is open to scroll to bottom
+    val isKeyboardOpen = WindowInsets.ime.asPaddingValues().calculateBottomPadding() > 0.dp
+    LaunchedEffect(isKeyboardOpen) {
+        if (isKeyboardOpen && messages.isNotEmpty()) {
+            delay(100)
+            listState.animateScrollToItem(messages.size - 1)
+        }
+    }
 
     // Monitor for 403 error and mark model as unauthorized
     LaunchedEffect(uiState) {
@@ -131,28 +148,33 @@ fun ChatScreen(
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            // Header with colored background
-            Row(
+            // Header with colored background that includes status bar area
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.primary)
-                    .padding(16.dp)
-                    .padding(WindowInsets.statusBars.asPaddingValues()),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Chat with AI",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onPrimary
-                )
-                // Display selected model name in dark green
-                if (selectedModel.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        text = selectedModel,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = GreenDark
+                        text = "Chat with AI",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onPrimary
                     )
+                    // Display selected model name in dark green
+                    if (selectedModel.isNotEmpty()) {
+                        Text(
+                            text = selectedModel,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = GreenDark
+                        )
+                    }
                 }
             }
 
@@ -162,12 +184,14 @@ fun ChatScreen(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .padding(8.dp),
+                    .padding(horizontal = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                item { Spacer(modifier = Modifier.height(8.dp)) }
                 items(messages) { message ->
                     MessageBubble(message = message)
                 }
+                item { Spacer(modifier = Modifier.height(8.dp)) }
             }
 
             // Input area
@@ -177,7 +201,8 @@ fun ChatScreen(
                 selectedAttachments = selectedAttachments,
                 onAddAttachment = { viewModel.addAttachment(it) },
                 onRemoveAttachment = { viewModel.removeAttachment(it) },
-                onPickFile = { filePickerLauncher.launch("*/*") }
+                onPickFile = { filePickerLauncher.launch("*/*") },
+                modifier = Modifier.imePadding()
             )
         }
 
@@ -186,32 +211,25 @@ fun ChatScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(16.dp),
+                    .padding(16.dp)
+                    .pointerInput(Unit) {
+                        detectTapGestures(onTap = {
+                            viewModel.clearError()
+                        })
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 Card(
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.errorContainer
                     ),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.wrapContentWidth()
                 ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = (uiState as ChatUiState.Error).message,
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
-                        IconButton(onClick = { viewModel.clearError() }) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Dismiss",
-                                tint = MaterialTheme.colorScheme.onErrorContainer
-                            )
-                        }
-                    }
+                    Text(
+                        text = (uiState as ChatUiState.Error).message,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.padding(16.dp)
+                    )
                 }
             }
         }
@@ -292,14 +310,15 @@ fun ChatInput(
     selectedAttachments: List<FileAttachment>,
     onAddAttachment: (FileAttachment) -> Unit,
     onRemoveAttachment: (FileAttachment) -> Unit,
-    onPickFile: () -> Unit
+    onPickFile: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     var text by remember { mutableStateOf("") }
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .padding(8.dp)
+            .padding(horizontal = 8.dp, vertical = 2.dp)
     ) {
         // Attachment preview
         AttachmentPreview(
@@ -339,7 +358,11 @@ fun ChatInput(
                         }
                     }
                 ),
-                shape = RoundedCornerShape(24.dp)
+                shape = RoundedCornerShape(24.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                )
             )
 
             Spacer(modifier = Modifier.width(8.dp))

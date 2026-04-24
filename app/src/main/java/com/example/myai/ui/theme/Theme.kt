@@ -39,7 +39,9 @@ private val LightColorSchemeWithSelection = lightColorScheme(
     primary = Green40,
     secondary = GreenLight,
     secondaryContainer = GreenLight,
-    tertiary = Teal40
+    tertiary = Teal40,
+    surface = androidx.compose.ui.graphics.Color.White,
+    background = androidx.compose.ui.graphics.Color.White
 )
 
 @Composable

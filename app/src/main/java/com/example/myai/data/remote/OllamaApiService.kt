@@ -83,10 +83,11 @@ class OllamaApiService(private val context: Context) {
             if (!response.isSuccessful) {
                 val errorBody = response.body?.string()
                 Log.e("OllamaApiService", "Ollama API error: ${response.code} ${response.message}, body: $errorBody")
-                val errorMessage = if (response.code == 403) {
-                    "This model requires a subscription. Please use other models"
-                } else {
-                    "Ollama API error: ${response.code} ${response.message}"
+                val errorMessage = when (response.code) {
+                    400 -> "Image size is too large."
+                    401 -> "Unauthorized!"
+                    403 -> "This model requires a subscription. Please use other models"
+                    else -> "Ollama API error: ${response.code} ${response.message}"
                 }
                 return@withContext Result.failure(Exception(errorMessage))
             }

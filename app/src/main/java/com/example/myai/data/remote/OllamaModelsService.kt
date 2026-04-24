@@ -71,9 +71,12 @@ class OllamaModelsService(private val context: Context) {
             if (!response.isSuccessful) {
                 val errorBody = response.body?.string()
                 Log.e("OllamaModelsService", "Ollama API error: ${response.code} ${response.message}, body: $errorBody")
-                return@withContext Result.failure(
-                    Exception("Ollama API error: ${response.code} ${response.message}")
-                )
+                val errorMessage = if (response.code == 401) {
+                    "Unauthorized!"
+                } else {
+                    "Ollama API error: ${response.code} ${response.message}"
+                }
+                return@withContext Result.failure(Exception(errorMessage))
             }
 
             val responseBody = response.body?.string()
