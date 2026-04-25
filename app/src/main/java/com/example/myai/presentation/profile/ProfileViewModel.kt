@@ -60,9 +60,10 @@ class ProfileViewModel(
     }
 
     fun selectModel(model: String) {
-        if (_unauthorizedModels.value.contains(model)) return
         viewModelScope.launch {
             _selectedModel.value = model
+            // Clear from unauthorized list when selected, so it's no longer grayed out
+            _unauthorizedModels.value = _unauthorizedModels.value - model
             prefs.edit().putString(PREF_SELECTED_MODEL, model).apply()
         }
     }

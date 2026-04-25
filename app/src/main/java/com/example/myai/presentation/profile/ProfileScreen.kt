@@ -356,10 +356,8 @@ fun ModelDropdown(
                         ) 
                     },
                     onClick = {
-                        if (!isUnauthorized) {
-                            onModelSelected(model)
-                            expanded = false
-                        }
+                        onModelSelected(model)
+                        expanded = false
                     },
                     modifier = Modifier.background(if (model == selectedModel) Color(0xFFF1F8E9) else Color.White)
                 )

@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -87,7 +88,29 @@ fun MainAppContent(onLogout: () -> Unit) {
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        bottomBar = {
+        containerColor = MaterialTheme.colorScheme.surface,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = innerPadding.calculateTopPadding())
+                .consumeWindowInsets(innerPadding)
+        ) {
+            Box(modifier = Modifier.weight(1f)) {
+                when (currentDestination) {
+                    AppDestinations.HOME -> ChatScreen(
+                        profileViewModel = profileViewModel,
+                        viewModel = chatViewModel
+                    )
+                    AppDestinations.FAVORITES -> Greeting(
+                        name = "Favorites",
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    AppDestinations.PROFILE -> ProfileScreen(onLogout = onLogout)
+                }
+            }
+
             if (!isKeyboardOpen) {
                 NavigationBar(
                     containerColor = MaterialTheme.colorScheme.primary,
@@ -114,27 +137,6 @@ fun MainAppContent(onLogout: () -> Unit) {
                         )
                     }
                 }
-            }
-        },
-        containerColor = MaterialTheme.colorScheme.surface,
-        contentWindowInsets = WindowInsets(0, 0, 0, 0)
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .consumeWindowInsets(innerPadding)
-        ) {
-            when (currentDestination) {
-                AppDestinations.HOME -> ChatScreen(
-                    profileViewModel = profileViewModel,
-                    viewModel = chatViewModel
-                )
-                AppDestinations.FAVORITES -> Greeting(
-                    name = "Favorites",
-                    modifier = Modifier.fillMaxSize()
-                )
-                AppDestinations.PROFILE -> ProfileScreen(onLogout = onLogout)
             }
         }
     }
