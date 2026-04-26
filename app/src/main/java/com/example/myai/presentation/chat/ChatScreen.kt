@@ -79,9 +79,11 @@ fun ChatScreen(
     viewModel: ChatViewModel
 ) {
     val selectedModel by profileViewModel.selectedModel.collectAsState()
-    // Update viewModel when selectedModel changes
-    androidx.compose.runtime.LaunchedEffect(selectedModel) {
+    val selectedService by profileViewModel.selectedService.collectAsState()
+    // Update viewModel when selectedModel or selectedService changes
+    androidx.compose.runtime.LaunchedEffect(selectedModel, selectedService) {
         viewModel.setSelectedModel(selectedModel)
+        viewModel.setSelectedService(selectedService)
     }
     val context = LocalContext.current
     val messages by viewModel.messages.collectAsState()

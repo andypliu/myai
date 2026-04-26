@@ -1,5 +1,6 @@
 package com.example.myai.domain.usecase
 
+import com.example.myai.domain.model.AiServiceType
 import com.example.myai.domain.model.OllamaModel
 import com.example.myai.domain.repository.ModelsRepository
 
@@ -10,7 +11,7 @@ import com.example.myai.domain.repository.ModelsRepository
 class GetModelsUseCase(
     private val repository: ModelsRepository
 ) {
-    suspend operator fun invoke(): Result<List<OllamaModel>> {
-        return repository.getAvailableModels()
+    suspend operator fun invoke(serviceType: AiServiceType): Result<List<OllamaModel>> {
+        return repository.getAvailableModels(serviceType)
     }
 }

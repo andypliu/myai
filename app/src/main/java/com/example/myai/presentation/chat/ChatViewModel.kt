@@ -4,8 +4,10 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.myai.data.remote.NvidiaApiService
 import com.example.myai.data.source.ChatDataSource
 import com.example.myai.data.repository.ChatRepositoryImpl
+import com.example.myai.domain.model.AiServiceType
 import com.example.myai.domain.model.ChatMessage
 import com.example.myai.domain.model.FileAttachment
 import com.example.myai.domain.usecase.SendMessageUseCase
@@ -13,13 +15,17 @@ import com.example.myai.domain.util.FileProcessor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import java.util.UUID
 
 class ChatViewModel(
-    private val dataSource: ChatDataSource
+    private val ollamaDataSource: ChatDataSource,
+    private val nvidiaApiService: NvidiaApiService
 ) : ViewModel() {
-    private val repository = ChatRepositoryImpl(dataSource)
+    private val repository = ChatRepositoryImpl(ollamaDataSource, nvidiaApiService)
     private val sendMessageUseCase = SendMessageUseCase(repository)
 
     private val _uiState = MutableStateFlow<ChatUiState>(ChatUiState.Idle)
@@ -31,6 +37,9 @@ class ChatViewModel(
     private val _selectedModel = MutableStateFlow("")
     val selectedModel: StateFlow<String> = _selectedModel.asStateFlow()
 
+    private val _selectedService = MutableStateFlow(AiServiceType.OLLAMA)
+    val selectedService: StateFlow<AiServiceType> = _selectedService.asStateFlow()
+
     private val _selectedAttachments = MutableStateFlow<List<FileAttachment>>(emptyList())
     val selectedAttachments: StateFlow<List<FileAttachment>> = _selectedAttachments.asStateFlow()
 
@@ -39,6 +48,10 @@ class ChatViewModel(
 
     fun setSelectedModel(model: String) {
         _selectedModel.value = model
+    }
+
+    fun setSelectedService(service: AiServiceType) {
+        _selectedService.value = service
     }
 
     fun addAttachment(attachment: FileAttachment) {
@@ -85,46 +98,78 @@ class ChatViewModel(
 
             // Set loading state and add typing indicator
             _uiState.value = ChatUiState.Loading
+            val assistantMessageId = UUID.randomUUID().toString()
             val typingMessage = ChatMessage(
-                id = "typing",
-                content = "...",
+                id = assistantMessageId,
+                content = "",
                 isUser = false,
                 isTyping = true
             )
             _messages.value = _messages.value + typingMessage
 
-            // Send to Ollama with attachments
-            val result = sendMessageUseCase(
-                _messages.value.filter { !it.isTyping },
-                message,
-                attachmentsWithBase64,
-                _selectedModel.value
-            )
+            // Send with current service type
+            if (_selectedService.value == AiServiceType.NVIDIA) {
+                sendMessageUseCase.invokeStream(
+                    _messages.value.filter { it.id != assistantMessageId },
+                    message,
+                    attachmentsWithBase64,
+                    _selectedModel.value,
+                    _selectedService.value
+                )
+                    .onStart {
+                        // Start with empty content
+                    }
+                    .catch { error ->
+                        android.util.Log.e("ChatViewModel", "Error in stream", error)
+                        _messages.value = _messages.value.filter { it.id != assistantMessageId }
+                        _uiState.value = ChatUiState.Error(error.message ?: "Unknown error")
+                    }
+                    .onCompletion {
+                        _uiState.value = ChatUiState.Success
+                        _newMessageId.value = assistantMessageId
+                    }
+                    .collect { chunk ->
+                        _messages.value = _messages.value.map { msg ->
+                            if (msg.id == assistantMessageId) {
+                                msg.copy(
+                                    content = msg.content + chunk,
+                                    isTyping = false
+                                )
+                            } else msg
+                        }
+                    }
+            } else {
+                val result = sendMessageUseCase(
+                    _messages.value.filter { it.id != assistantMessageId },
+                    message,
+                    attachmentsWithBase64,
+                    _selectedModel.value,
+                    _selectedService.value
+                )
 
-            result.fold(
-                onSuccess = { response ->
-                    android.util.Log.d("ChatViewModel", "Response received: ${response.take(100)}...")
-                    // Remove typing indicator and add actual response
-                    _messages.value = _messages.value.filter { !it.isTyping }
-                    val assistantMessage = ChatMessage(
-                        id = UUID.randomUUID().toString(),
-                        content = response,
-                        isUser = false
-                    )
-                    _messages.value = _messages.value + assistantMessage
+                result.fold(
+                    onSuccess = { response ->
+                        android.util.Log.d("ChatViewModel", "Response received: ${response.take(100)}...")
+                        // Remove typing indicator and add actual response
+                        _messages.value = _messages.value.map { msg ->
+                            if (msg.id == assistantMessageId) {
+                                msg.copy(content = response, isTyping = false)
+                            } else msg
+                        }
 
-                    // Notify that a new message was added
-                    _newMessageId.value = assistantMessage.id
+                        // Notify that a new message was added
+                        _newMessageId.value = assistantMessageId
 
-                    _uiState.value = ChatUiState.Success
-                },
-                onFailure = { error ->
-                    android.util.Log.e("ChatViewModel", "Error sending message", error)
-                    // Remove typing indicator on error
-                    _messages.value = _messages.value.filter { !it.isTyping }
-                    _uiState.value = ChatUiState.Error(error.message ?: "Unknown error")
-                }
-            )
+                        _uiState.value = ChatUiState.Success
+                    },
+                    onFailure = { error ->
+                        android.util.Log.e("ChatViewModel", "Error sending message", error)
+                        // Remove typing indicator on error
+                        _messages.value = _messages.value.filter { it.id != assistantMessageId }
+                        _uiState.value = ChatUiState.Error(error.message ?: "Unknown error")
+                    }
+                )
+            }
         }
     }
 

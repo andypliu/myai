@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.myai.domain.model.AiServiceType
 import com.example.myai.domain.usecase.GetModelsUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,6 +18,12 @@ class ProfileViewModel(
 
     private val prefs: SharedPreferences = context.getSharedPreferences("MyAIPrefs", Context.MODE_PRIVATE)
     private val PREF_SELECTED_MODEL = "selected_model"
+    private val PREF_SELECTED_SERVICE = "selected_service"
+
+    private val _selectedService = MutableStateFlow(
+        AiServiceType.valueOf(prefs.getString(PREF_SELECTED_SERVICE, AiServiceType.OLLAMA.name) ?: AiServiceType.OLLAMA.name)
+    )
+    val selectedService: StateFlow<AiServiceType> = _selectedService.asStateFlow()
 
     private val _selectedModel = MutableStateFlow(prefs.getString(PREF_SELECTED_MODEL, "") ?: "")
     val selectedModel: StateFlow<String> = _selectedModel.asStateFlow()
@@ -37,11 +44,11 @@ class ProfileViewModel(
         fetchModels()
     }
 
-    fun fetchModels() {
+    fun fetchModels(serviceType: AiServiceType = _selectedService.value) {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
-            getModelsUseCase()
+            getModelsUseCase(serviceType)
                 .onSuccess { models ->
                     _availableModels.value = models.map { it.name }
                     // If selected model is empty or not in the list, select the first one
@@ -52,10 +59,20 @@ class ProfileViewModel(
                 }
                 .onFailure { error ->
                     _error.value = error.message ?: "Failed to fetch models"
-                    // Keep empty list if fetch fails - models will be fetched on next refresh
                     _availableModels.value = emptyList()
                 }
             _isLoading.value = false
+        }
+    }
+
+    fun selectService(serviceType: AiServiceType) {
+        if (_selectedService.value != serviceType) {
+            _selectedService.value = serviceType
+            prefs.edit().putString(PREF_SELECTED_SERVICE, serviceType.name).apply()
+            // Clear selected model as it belongs to the previous service
+            _selectedModel.value = ""
+            prefs.edit().putString(PREF_SELECTED_MODEL, "").apply()
+            fetchModels(serviceType)
         }
     }
 
