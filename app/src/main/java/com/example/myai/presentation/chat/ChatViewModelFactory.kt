@@ -16,7 +16,7 @@ class ChatViewModelFactory(
             @Suppress("UNCHECKED_CAST")
             val apiService = OllamaApiService(context)
             val dataSource: ChatDataSource = OllamaDataSource(apiService)
-            val nvidiaApiService = NvidiaApiService()
+            val nvidiaApiService = NvidiaApiService(context)
             return ChatViewModel(dataSource, nvidiaApiService) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")

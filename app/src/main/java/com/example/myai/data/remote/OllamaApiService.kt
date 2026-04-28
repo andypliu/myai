@@ -96,7 +96,7 @@ class OllamaApiService(private val context: Context) {
                 ?: return@withContext Result.failure(Exception("Empty response body"))
 
             Log.d("OllamaApiService", "Response body length: ${responseBody.length}")
-            Log.d("OllamaApiService", "Response body (first 200 chars): ${responseBody.take(200)}...")
+            Log.d("OllamaApiService", "Response body (first 200 chars): ${responseBody}...")
 
             val chatResponse = gson.fromJson(responseBody, ChatResponse::class.java)
             Result.success(chatResponse)

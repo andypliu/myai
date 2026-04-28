@@ -122,7 +122,12 @@ class ChatViewModel(
                     .catch { error ->
                         android.util.Log.e("ChatViewModel", "Error in stream", error)
                         _messages.value = _messages.value.filter { it.id != assistantMessageId }
-                        _uiState.value = ChatUiState.Error(error.message ?: "Unknown error")
+                        val errorMessage = if (error is java.net.SocketTimeoutException) {
+                            "Timeout, please try again later."
+                        } else {
+                            error.message ?: "Unknown error"
+                        }
+                        _uiState.value = ChatUiState.Error(errorMessage)
                     }
                     .onCompletion {
                         _uiState.value = ChatUiState.Success
@@ -166,7 +171,12 @@ class ChatViewModel(
                         android.util.Log.e("ChatViewModel", "Error sending message", error)
                         // Remove typing indicator on error
                         _messages.value = _messages.value.filter { it.id != assistantMessageId }
-                        _uiState.value = ChatUiState.Error(error.message ?: "Unknown error")
+                        val errorMessage = if (error is java.net.SocketTimeoutException) {
+                            "Timeout, please try again later."
+                        } else {
+                            error.message ?: "Unknown error"
+                        }
+                        _uiState.value = ChatUiState.Error(errorMessage)
                     }
                 )
             }

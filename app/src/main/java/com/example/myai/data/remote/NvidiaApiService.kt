@@ -1,5 +1,7 @@
 package com.example.myai.data.remote
 
+import android.content.Context
+import android.util.Base64
 import android.util.Log
 import com.example.myai.data.config.ApiConfig
 import com.example.myai.data.model.ChatRequest
@@ -23,12 +25,35 @@ import java.util.concurrent.TimeUnit
  * API service for Nvidia (Local Uvicorn) HTTP communication.
  * Communicates with the local service using Anthropic-like message format.
  */
-class NvidiaApiService {
+class NvidiaApiService(private val context: Context) {
+
+    private fun getCredentials(): Pair<String, String>? {
+        val prefs = context.getSharedPreferences("MyAIPrefs", Context.MODE_PRIVATE)
+        val username = prefs.getString("saved_username", null)
+        val password = prefs.getString("saved_password", null)
+        return if (username != null && password != null) Pair(username, password) else null
+    }
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(60, TimeUnit.SECONDS)
-        .readTimeout(120, TimeUnit.SECONDS)
+        .readTimeout(300, TimeUnit.SECONDS)
         .writeTimeout(60, TimeUnit.SECONDS)
+        .addInterceptor { chain ->
+            val original = chain.request()
+            val creds = getCredentials()
+            val requestBuilder = original.newBuilder()
+            
+            if (creds != null) {
+                val credentials = "${creds.first}:${creds.second}"
+                val auth = "Basic ${Base64.encodeToString(credentials.toByteArray(), Base64.NO_WRAP)}"
+                requestBuilder.header("Authorization", auth)
+            }
+            
+            // Also keep the x-api-key if the uvicorn service expects it alongside basic auth
+            requestBuilder.header("x-api-key", ApiConfig.NVIDIA_AUTH_TOKEN)
+            
+            chain.proceed(requestBuilder.build())
+        }
         .build()
 
     private val gson = Gson()
@@ -40,15 +65,14 @@ class NvidiaApiService {
      * Handles both standard JSON responses and SSE streams.
      */
     fun chatStream(request: ChatRequest): Flow<String> = flow {
+        val fullResponse = StringBuilder()
         try {
             val nvidiaRequest = mapToNvidiaRequest(request)
             val jsonBody = gson.toJson(nvidiaRequest)
-            Log.d("NvidiaApiService", "Full JSON Request Body: $jsonBody")
             val requestBody = jsonBody.toRequestBody(jsonMediaType)
 
             val httpRequest = Request.Builder()
                 .url(ApiConfig.NVIDIA_CHAT_ENDPOINT)
-                .addHeader("x-api-key", ApiConfig.NVIDIA_AUTH_TOKEN)
                 .addHeader("Content-Type", "application/json")
                 .addHeader("Accept", "text/event-stream")
                 .post(requestBody)
@@ -56,6 +80,7 @@ class NvidiaApiService {
 
             Log.d("NvidiaApiService", "Sending request to: ${ApiConfig.NVIDIA_CHAT_ENDPOINT}")
             Log.d("NvidiaApiService", "Model: ${request.model}")
+            Log.d("NvidiaApiService", "Full JSON Request Body: $jsonBody")
 
             val response = client.newCall(httpRequest).execute()
             if (!response.isSuccessful) {
@@ -69,6 +94,7 @@ class NvidiaApiService {
             try {
                 while (!source.exhausted()) {
                     val line = source.readUtf8Line() ?: break
+                   //
                     val trimmedLine = line.trim()
 
                     if (trimmedLine.startsWith("data:")) {
@@ -80,6 +106,7 @@ class NvidiaApiService {
 
                         val text = extractTextFromData(dataJson)
                         if (text != null) {
+                            fullResponse.append(text)
                             emit(text)
                         }
                     } else if (trimmedLine.startsWith("{")) {
@@ -88,13 +115,16 @@ class NvidiaApiService {
                         Log.d("NvidiaApiService", "Received raw JSON instead of SSE")
                         val text = extractTextFromFullJson(fullJson)
                         if (text != null) {
+                            fullResponse.append(text)
                             emit(text)
                         }
                         break
                     }
                 }
+                Log.d("NvidiaApiService", "Final Streamed Response: ${fullResponse.toString()}")
             } catch (e: Exception) {
                 Log.w("NvidiaApiService", "Stream interrupted or error during parsing", e)
+                if (e is java.net.SocketTimeoutException) throw e
             } finally {
                 response.close()
             }
@@ -108,12 +138,10 @@ class NvidiaApiService {
         try {
             val nvidiaRequest = mapToNvidiaRequest(request)
             val jsonBody = gson.toJson(nvidiaRequest)
-            Log.d("NvidiaApiService", "Full JSON Request Body: $jsonBody")
             val requestBody = jsonBody.toRequestBody(jsonMediaType)
 
             val httpRequest = Request.Builder()
                 .url(ApiConfig.NVIDIA_CHAT_ENDPOINT)
-                .addHeader("x-api-key", ApiConfig.NVIDIA_AUTH_TOKEN)
                 .addHeader("Content-Type", "application/json")
                 .addHeader("Accept", "text/event-stream")
                 .post(requestBody)
@@ -121,6 +149,7 @@ class NvidiaApiService {
 
             Log.d("NvidiaApiService", "Sending request to: ${ApiConfig.NVIDIA_CHAT_ENDPOINT}")
             Log.d("NvidiaApiService", "Model: ${request.model}")
+            Log.d("NvidiaApiService", "Full JSON Request Body: $jsonBody")
             
             val response = client.newCall(httpRequest).execute()
             if (!response.isSuccessful) {
@@ -135,6 +164,7 @@ class NvidiaApiService {
             try {
                 while (!source.exhausted()) {
                     val line = source.readUtf8Line() ?: break
+                    Log.d("NvidiaApiService", "Raw stream line: $line")
                     val trimmedLine = line.trim()
                     
                     if (trimmedLine.startsWith("data:")) {
@@ -161,13 +191,16 @@ class NvidiaApiService {
                 }
             } catch (e: Exception) {
                 Log.w("NvidiaApiService", "Stream interrupted or error during parsing", e)
+                if (e is java.net.SocketTimeoutException) throw e
             } finally {
                 response.close()
             }
 
             val fullContent = sb.toString().trim()
+
             if (fullContent.isNotEmpty()) {
                 Log.d("NvidiaApiService", "Request successful, content length: ${fullContent.length}")
+                Log.d("NvidiaApiService", "Final Display Response: $fullContent")
                 return@withContext Result.success(
                     ChatResponse(
                         message = ChatResponseMessage(role = "assistant", content = fullContent),
@@ -276,7 +309,7 @@ class NvidiaApiService {
             "model" to request.model,
             "messages" to messages,
             "max_tokens" to 4096,
-            "stream" to true
+            "stream" to request.stream
         )
     }
 }
