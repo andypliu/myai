@@ -17,5 +17,5 @@ object ApiConfig {
     // Nvidia / Local Uvicorn Service
     const val NVIDIA_BASE_URL = "https://$REMOTE_HOST:$UVICORN_PORT"
     const val NVIDIA_CHAT_ENDPOINT = "$NVIDIA_BASE_URL/v1/messages"
-    const val NVIDIA_AUTH_TOKEN = "freecc"
+    const val NVIDIA_CATALOG_URL = "https://build.nvidia.com/models"
 }

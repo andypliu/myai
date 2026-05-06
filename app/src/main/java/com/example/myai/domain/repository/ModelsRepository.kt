@@ -13,4 +13,9 @@ interface ModelsRepository {
      * @return Result containing the list of models or an error
      */
     suspend fun getAvailableModels(serviceType: AiServiceType): Result<List<OllamaModel>>
+
+    /**
+     * Refetches the list of available AI models for a specific service.
+     */
+    suspend fun refreshModels(serviceType: AiServiceType): Result<List<OllamaModel>>
 }

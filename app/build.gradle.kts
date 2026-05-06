@@ -60,6 +60,9 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
 
+    // HTML Scraping
+    implementation("org.jsoup:jsoup:1.17.2")
+
     // Material Icons
     implementation("androidx.compose.material:material-icons-extended:1.6.0")
 

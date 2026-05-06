@@ -19,13 +19,25 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.SmartToy
+import androidx.compose.material.icons.filled.ModelTraining
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -34,6 +46,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,6 +54,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SuggestionChip
+import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -48,6 +63,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -59,12 +75,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.material.icons.filled.Dns
 import com.example.myai.domain.model.AiServiceType
 import com.example.myai.ui.theme.GreenDark
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ProfileScreen(
     onLogout: () -> Unit,
@@ -97,7 +115,7 @@ fun ProfileScreen(
                     actionIconContentColor = MaterialTheme.colorScheme.onPrimary
                 ),
                 actions = {
-                    IconButton(onClick = { viewModel.fetchModels() }) {
+                    IconButton(onClick = { viewModel.fetchModels(refresh = true) }) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "Refresh models"
@@ -123,7 +141,7 @@ fun ProfileScreen(
 
         PullToRefreshBox(
             isRefreshing = isLoading,
-            onRefresh = { viewModel.fetchModels() },
+            onRefresh = { viewModel.fetchModels(refresh = true) },
             state = pullToRefreshState,
             modifier = Modifier.padding(paddingValues)
         ) {
@@ -232,13 +250,73 @@ fun ProfileScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        ModelDropdown(
-                            models = availableModels,
-                            unauthorizedModels = unauthorizedModels,
-                            selectedModel = selectedModel,
-                            onModelSelected = { viewModel.selectModel(it) },
-                            isLoading = isLoading
-                        )
+                        if (selectedService == AiServiceType.NVIDIA) {
+                            ModelDropdown(
+                                models = availableModels,
+                                unauthorizedModels = unauthorizedModels,
+                                selectedModel = selectedModel,
+                                onModelSelected = { viewModel.selectModel(it) },
+                                isLoading = isLoading
+                            )
+                            
+                            Spacer(modifier = Modifier.height(12.dp))
+                            
+                            var customModel by remember { mutableStateOf(selectedModel) }
+                            
+                            // Update local state when selectedModel changes from outside
+                            androidx.compose.runtime.LaunchedEffect(selectedModel) {
+                                customModel = selectedModel
+                            }
+
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                OutlinedTextField(
+                                    value = customModel,
+                                    onValueChange = { 
+                                        customModel = it
+                                    },
+                                    label = { Text("Manual Model Override") },
+                                    placeholder = { Text("e.g. meta/llama-3.1-405b-instruct") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(12.dp),
+                                    singleLine = true,
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                                        focusedLabelColor = MaterialTheme.colorScheme.primary
+                                    ),
+                                    trailingIcon = {
+                                        if (customModel.isNotEmpty()) {
+                                            IconButton(onClick = { 
+                                                customModel = ""
+                                                viewModel.selectModel("")
+                                            }) {
+                                                Icon(Icons.Default.Close, contentDescription = "Clear")
+                                            }
+                                        }
+                                    }
+                                )
+                                
+                                if (customModel != selectedModel && customModel.isNotBlank()) {
+                                    Button(
+                                        onClick = { viewModel.selectModel(customModel) },
+                                        modifier = Modifier.align(Alignment.End),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Text("Apply Change")
+                                    }
+                                }
+
+
+                            }
+                        } else {
+                            ModelDropdown(
+                                models = availableModels,
+                                unauthorizedModels = unauthorizedModels,
+                                selectedModel = selectedModel,
+                                onModelSelected = { viewModel.selectModel(it) },
+                                isLoading = isLoading
+                            )
+                        }
                     }
                 }
 

@@ -41,18 +41,16 @@ class NvidiaApiService(private val context: Context) {
         .addInterceptor { chain ->
             val original = chain.request()
             val creds = getCredentials()
-            val requestBuilder = original.newBuilder()
-            
-            if (creds != null) {
+            val request = if (creds != null) {
                 val credentials = "${creds.first}:${creds.second}"
                 val auth = "Basic ${Base64.encodeToString(credentials.toByteArray(), Base64.NO_WRAP)}"
-                requestBuilder.header("Authorization", auth)
+                original.newBuilder()
+                    .header("Authorization", auth)
+                    .build()
+            } else {
+                original
             }
-            
-            // Also keep the x-api-key if the uvicorn service expects it alongside basic auth
-            requestBuilder.header("x-api-key", ApiConfig.NVIDIA_AUTH_TOKEN)
-            
-            chain.proceed(requestBuilder.build())
+            chain.proceed(request)
         }
         .build()
 

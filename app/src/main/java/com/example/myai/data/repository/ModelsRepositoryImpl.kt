@@ -10,28 +10,32 @@ import com.example.myai.domain.repository.ModelsRepository
  * Ollama and Nvidia (Local) models.
  */
 class ModelsRepositoryImpl(
-    private val modelsService: OllamaModelsService
+    private val modelsService: OllamaModelsService,
+    private val nvidiaModelsService: com.example.myai.data.remote.NvidiaModelsService
 ) : ModelsRepository {
     
+    private var cachedNvidiaModels: List<OllamaModel>? = null
+
     override suspend fun getAvailableModels(serviceType: AiServiceType): Result<List<OllamaModel>> {
         return when (serviceType) {
             AiServiceType.OLLAMA -> modelsService.getModels()
             AiServiceType.NVIDIA -> {
-                // For Nvidia, we use the hardcoded list provided by the user
-                val nvidiaModels = listOf(
-                    "deepseek-ai/deepseek-v4-pro",
-                    "deepseek-ai/deepseek-v4-flash",
-                    "moonshotai/kimi-k2.5",
-                    "z-ai/glm-5.1",
-                    "minimaxai/minimax-m2.5"
-                ).map { name -> 
-                    OllamaModel(
-                        name = name,
-                        modifiedAt = "",
-                        size = 0L
-                    )
+                cachedNvidiaModels?.let { return Result.success(it) }
+                
+                nvidiaModelsService.getModels().onSuccess {
+                    cachedNvidiaModels = it
                 }
-                Result.success(nvidiaModels)
+            }
+        }
+    }
+
+    override suspend fun refreshModels(serviceType: AiServiceType): Result<List<OllamaModel>> {
+        return when (serviceType) {
+            AiServiceType.OLLAMA -> modelsService.getModels()
+            AiServiceType.NVIDIA -> {
+                nvidiaModelsService.getModels().onSuccess {
+                    cachedNvidiaModels = it
+                }
             }
         }
     }

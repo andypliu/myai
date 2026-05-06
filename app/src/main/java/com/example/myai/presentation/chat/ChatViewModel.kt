@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -45,6 +46,8 @@ class ChatViewModel(
 
     private val _newMessageId = MutableStateFlow<String?>(null)
     val newMessageId: StateFlow<String?> = _newMessageId.asStateFlow()
+
+    private val pendingRequests = MutableStateFlow(0)
 
     fun setSelectedModel(model: String) {
         _selectedModel.value = model
@@ -88,7 +91,7 @@ class ChatViewModel(
                 isUser = true,
                 attachments = attachmentsWithBase64.takeIf { it.isNotEmpty() }
             )
-            _messages.value = _messages.value + userMessage
+            _messages.update { it + userMessage }
 
             // Notify that a new message was added
             _newMessageId.value = userMessage.id
@@ -97,6 +100,7 @@ class ChatViewModel(
             _selectedAttachments.value = emptyList()
 
             // Set loading state and add typing indicator
+            pendingRequests.update { it + 1 }
             _uiState.value = ChatUiState.Loading
             val assistantMessageId = UUID.randomUUID().toString()
             val typingMessage = ChatMessage(
@@ -105,80 +109,89 @@ class ChatViewModel(
                 isUser = false,
                 isTyping = true
             )
-            _messages.value = _messages.value + typingMessage
+            _messages.update { it + typingMessage }
 
-            // Send with current service type
-            if (_selectedService.value == AiServiceType.NVIDIA) {
-                sendMessageUseCase.invokeStream(
-                    _messages.value.filter { it.id != assistantMessageId },
-                    message,
-                    attachmentsWithBase64,
-                    _selectedModel.value,
-                    _selectedService.value
-                )
-                    .onStart {
-                        // Start with empty content
-                    }
-                    .catch { error ->
-                        android.util.Log.e("ChatViewModel", "Error in stream", error)
-                        _messages.value = _messages.value.filter { it.id != assistantMessageId }
-                        val errorMessage = if (error is java.net.SocketTimeoutException) {
-                            "Timeout, please try again later."
-                        } else {
-                            error.message ?: "Unknown error"
+            try {
+                // Send with current service type
+                if (_selectedService.value == AiServiceType.NVIDIA) {
+                    sendMessageUseCase.invokeStream(
+                        _messages.value.filter { it.id != assistantMessageId },
+                        message,
+                        attachmentsWithBase64,
+                        _selectedModel.value,
+                        _selectedService.value
+                    )
+                        .onStart {
+                            // Start with empty content
                         }
-                        _uiState.value = ChatUiState.Error(errorMessage)
-                    }
-                    .onCompletion {
-                        _uiState.value = ChatUiState.Success
-                        _newMessageId.value = assistantMessageId
-                    }
-                    .collect { chunk ->
-                        _messages.value = _messages.value.map { msg ->
-                            if (msg.id == assistantMessageId) {
-                                msg.copy(
-                                    content = msg.content + chunk,
-                                    isTyping = false
-                                )
-                            } else msg
+                        .catch { error ->
+                            android.util.Log.e("ChatViewModel", "Error in stream", error)
+                            _messages.update { list -> list.filter { it.id != assistantMessageId } }
+                            val errorMessage = if (error is java.net.SocketTimeoutException) {
+                                "Timeout, please try again later."
+                            } else {
+                                error.message ?: "Unknown error"
+                            }
+                            _uiState.value = ChatUiState.Error(errorMessage)
                         }
-                    }
-            } else {
-                val result = sendMessageUseCase(
-                    _messages.value.filter { it.id != assistantMessageId },
-                    message,
-                    attachmentsWithBase64,
-                    _selectedModel.value,
-                    _selectedService.value
-                )
+                        .onCompletion {
+                            _newMessageId.value = assistantMessageId
+                        }
+                        .collect { chunk ->
+                            _messages.update { list ->
+                                list.map { msg ->
+                                    if (msg.id == assistantMessageId) {
+                                        val newContent = msg.content + chunk
+                                        msg.copy(
+                                            content = newContent,
+                                            isTyping = newContent.isEmpty()
+                                        )
+                                    } else msg
+                                }
+                            }
+                        }
+                } else {
+                    val result = sendMessageUseCase(
+                        _messages.value.filter { it.id != assistantMessageId },
+                        message,
+                        attachmentsWithBase64,
+                        _selectedModel.value,
+                        _selectedService.value
+                    )
 
-                result.fold(
-                    onSuccess = { response ->
-                        android.util.Log.d("ChatViewModel", "Response received: ${response.take(100)}...")
-                        // Remove typing indicator and add actual response
-                        _messages.value = _messages.value.map { msg ->
-                            if (msg.id == assistantMessageId) {
-                                msg.copy(content = response, isTyping = false)
-                            } else msg
-                        }
+                    result.fold(
+                        onSuccess = { response ->
+                            android.util.Log.d("ChatViewModel", "Response received: ${response}...")
+                            // Remove typing indicator and add actual response
+                            _messages.update { list ->
+                                list.map { msg ->
+                                    if (msg.id == assistantMessageId) {
+                                        msg.copy(content = response, isTyping = false)
+                                    } else msg
+                                }
+                            }
 
-                        // Notify that a new message was added
-                        _newMessageId.value = assistantMessageId
-
-                        _uiState.value = ChatUiState.Success
-                    },
-                    onFailure = { error ->
-                        android.util.Log.e("ChatViewModel", "Error sending message", error)
-                        // Remove typing indicator on error
-                        _messages.value = _messages.value.filter { it.id != assistantMessageId }
-                        val errorMessage = if (error is java.net.SocketTimeoutException) {
-                            "Timeout, please try again later."
-                        } else {
-                            error.message ?: "Unknown error"
+                            // Notify that a new message was added
+                            _newMessageId.value = assistantMessageId
+                        },
+                        onFailure = { error ->
+                            android.util.Log.e("ChatViewModel", "Error sending message", error)
+                            // Remove typing indicator on error
+                            _messages.update { list -> list.filter { it.id != assistantMessageId } }
+                            val errorMessage = if (error is java.net.SocketTimeoutException) {
+                                "Timeout, please try again later."
+                            } else {
+                                error.message ?: "Unknown error"
+                            }
+                            _uiState.value = ChatUiState.Error(errorMessage)
                         }
-                        _uiState.value = ChatUiState.Error(errorMessage)
-                    }
-                )
+                    )
+                }
+            } finally {
+                pendingRequests.update { it - 1 }
+                if (pendingRequests.value == 0 && _uiState.value is ChatUiState.Loading) {
+                    _uiState.value = ChatUiState.Success
+                }
             }
         }
     }

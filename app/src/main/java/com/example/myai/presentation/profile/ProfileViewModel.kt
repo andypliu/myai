@@ -44,17 +44,19 @@ class ProfileViewModel(
         fetchModels()
     }
 
-    fun fetchModels(serviceType: AiServiceType = _selectedService.value) {
+    fun fetchModels(serviceType: AiServiceType = _selectedService.value, refresh: Boolean = false) {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
-            getModelsUseCase(serviceType)
+            getModelsUseCase(serviceType, refresh)
                 .onSuccess { models ->
                     _availableModels.value = models.map { it.name }
-                    // If selected model is empty or not in the list, select the first one
-                    if ((_selectedModel.value.isEmpty() || !_availableModels.value.contains(_selectedModel.value)) && _availableModels.value.isNotEmpty()) {
-                        _selectedModel.value = _availableModels.value.first()
-                        prefs.edit().putString(PREF_SELECTED_MODEL, _selectedModel.value).apply()
+                    // For non-NVIDIA services, if selected model is empty or not in the list, select the first one
+                    if (_selectedService.value != AiServiceType.NVIDIA) {
+                        if ((_selectedModel.value.isEmpty() || !_availableModels.value.contains(_selectedModel.value)) && _availableModels.value.isNotEmpty()) {
+                            _selectedModel.value = _availableModels.value.first()
+                            prefs.edit().putString(PREF_SELECTED_MODEL, _selectedModel.value).apply()
+                        }
                     }
                 }
                 .onFailure { error ->

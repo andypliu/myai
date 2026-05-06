@@ -11,7 +11,11 @@ import com.example.myai.domain.repository.ModelsRepository
 class GetModelsUseCase(
     private val repository: ModelsRepository
 ) {
-    suspend operator fun invoke(serviceType: AiServiceType): Result<List<OllamaModel>> {
-        return repository.getAvailableModels(serviceType)
+    suspend operator fun invoke(serviceType: AiServiceType, refresh: Boolean = false): Result<List<OllamaModel>> {
+        return if (refresh) {
+            repository.refreshModels(serviceType)
+        } else {
+            repository.getAvailableModels(serviceType)
+        }
     }
 }

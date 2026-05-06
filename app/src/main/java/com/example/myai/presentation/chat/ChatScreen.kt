@@ -1,6 +1,7 @@
 package com.example.myai.presentation.chat
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -64,6 +66,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myai.domain.model.ChatMessage
 import com.example.myai.domain.model.FileAttachment
@@ -161,21 +165,71 @@ fun ChatScreen(
                         .fillMaxWidth()
                         .statusBarsPadding()
                         .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = "Chat with AI",
                         style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onPrimary
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        maxLines = 1
                     )
                     // Display selected model name in dark green
                     if (selectedModel.isNotEmpty()) {
+                        val formattedModel = remember(selectedModel) {
+                            selectedModel.substringAfter('/')
+                                .split("-")
+                                .joinToString(" ") { word ->
+                                    word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+                                }
+                        }
+                        Spacer(modifier = Modifier.width(24.dp))
                         Text(
-                            text = selectedModel,
+                            text = formattedModel,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = GreenDark
+                            color = GreenDark,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                            textAlign = TextAlign.End
                         )
+                    }
+                }
+            }
+
+            // Error message - shown as a non-blocking banner below the header
+            if (uiState is ChatUiState.Error) {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp)
+                        .clickable { viewModel.clearError() },
+                    shape = RoundedCornerShape(8.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = (uiState as ChatUiState.Error).message,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        IconButton(
+                            onClick = { viewModel.clearError() },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Dismiss",
+                                tint = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -190,7 +244,10 @@ fun ChatScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 item { Spacer(modifier = Modifier.height(8.dp)) }
-                items(messages) { message ->
+                items(
+                    items = messages,
+                    key = { it.id }
+                ) { message ->
                     MessageBubble(message = message)
                 }
                 item { Spacer(modifier = Modifier.height(8.dp)) }
@@ -206,34 +263,6 @@ fun ChatScreen(
                 onPickFile = { filePickerLauncher.launch("*/*") },
                 modifier = Modifier.imePadding()
             )
-        }
-
-        // Error message
-        if (uiState is ChatUiState.Error) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp)
-                    .pointerInput(Unit) {
-                        detectTapGestures(onTap = {
-                            viewModel.clearError()
-                        })
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    ),
-                    modifier = Modifier.wrapContentWidth()
-                ) {
-                    Text(
-                        text = (uiState as ChatUiState.Error).message,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        modifier = Modifier.padding(16.dp)
-                    )
-                }
-            }
         }
     }
 }
@@ -258,14 +287,14 @@ fun MessageBubble(message: ChatMessage) {
     LaunchedEffect(message.isTyping) {
         if (message.isTyping) {
             while (true) {
-                delay(500)
+                delay(400)
                 dotCount = (dotCount % 3) + 1
             }
         }
     }
 
     val displayContent = if (message.isTyping) {
-        ".".repeat(dotCount)
+        "Typing" + ".".repeat(dotCount)
     } else {
         message.content
     }
@@ -333,8 +362,7 @@ fun ChatInput(
         ) {
             // Attachment button
             IconButton(
-                onClick = onPickFile,
-                enabled = !isLoading
+                onClick = onPickFile
             ) {
                 Icon(
                     imageVector = Icons.Default.AttachFile,
@@ -350,7 +378,6 @@ fun ChatInput(
                 onValueChange = { text = it },
                 modifier = Modifier.weight(1f),
                 placeholder = { Text("Type a message...") },
-                enabled = !isLoading,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                 keyboardActions = KeyboardActions(
                     onSend = {
@@ -376,12 +403,12 @@ fun ChatInput(
                         text = ""
                     }
                 },
-                enabled = !isLoading && (text.isNotBlank() || selectedAttachments.isNotEmpty())
+                enabled = (text.isNotBlank() || selectedAttachments.isNotEmpty())
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.Send,
                     contentDescription = "Send",
-                    tint = if ((text.isNotBlank() || selectedAttachments.isNotEmpty()) && !isLoading) {
+                    tint = if ((text.isNotBlank() || selectedAttachments.isNotEmpty())) {
                         MaterialTheme.colorScheme.primary
                     } else {
                         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)

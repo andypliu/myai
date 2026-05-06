@@ -13,7 +13,10 @@ class ProfileViewModelFactory(
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(ProfileViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            val modelsRepository = ModelsRepositoryImpl(OllamaModelsService(context))
+            val modelsRepository = ModelsRepositoryImpl(
+                OllamaModelsService(context),
+                com.example.myai.data.remote.NvidiaModelsService(context)
+            )
             val getModelsUseCase = GetModelsUseCase(modelsRepository)
             return ProfileViewModel(context, getModelsUseCase) as T
         }
