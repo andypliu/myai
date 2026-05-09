@@ -106,13 +106,12 @@ fun ChatScreen(
         }
     }
 
-    // Monitor for 403 error and mark model as unauthorized
+    // Monitor for errors and mark model as unauthorized
     LaunchedEffect(uiState) {
-        if (uiState is ChatUiState.Error) {
-            val error = (uiState as ChatUiState.Error).message
-            if (error.contains("subscription", ignoreCase = true)) {
-                profileViewModel.markModelAsUnauthorized(selectedModel)
-            }
+        val state = uiState
+        if (state is ChatUiState.Error) {
+            val errorModel = state.model ?: selectedModel
+            profileViewModel.markModelAsUnauthorized(errorModel)
         }
     }
 
@@ -186,7 +185,7 @@ fun ChatScreen(
                         Text(
                             text = formattedModel,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = GreenDark,
+                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f),

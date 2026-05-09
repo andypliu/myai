@@ -111,6 +111,7 @@ class ChatViewModel(
             )
             _messages.update { it + typingMessage }
 
+            val currentModel = _selectedModel.value
             try {
                 // Send with current service type
                 if (_selectedService.value == AiServiceType.NVIDIA) {
@@ -118,7 +119,7 @@ class ChatViewModel(
                         _messages.value.filter { it.id != assistantMessageId },
                         message,
                         attachmentsWithBase64,
-                        _selectedModel.value,
+                        currentModel,
                         _selectedService.value
                     )
                         .onStart {
@@ -132,7 +133,7 @@ class ChatViewModel(
                             } else {
                                 error.message ?: "Unknown error"
                             }
-                            _uiState.value = ChatUiState.Error(errorMessage)
+                            _uiState.value = ChatUiState.Error(errorMessage, currentModel)
                         }
                         .onCompletion {
                             _newMessageId.value = assistantMessageId
@@ -155,7 +156,7 @@ class ChatViewModel(
                         _messages.value.filter { it.id != assistantMessageId },
                         message,
                         attachmentsWithBase64,
-                        _selectedModel.value,
+                        currentModel,
                         _selectedService.value
                     )
 
@@ -183,7 +184,7 @@ class ChatViewModel(
                             } else {
                                 error.message ?: "Unknown error"
                             }
-                            _uiState.value = ChatUiState.Error(errorMessage)
+                            _uiState.value = ChatUiState.Error(errorMessage, currentModel)
                         }
                     )
                 }
@@ -205,5 +206,5 @@ sealed class ChatUiState {
     object Idle : ChatUiState()
     object Loading : ChatUiState()
     object Success : ChatUiState()
-    data class Error(val message: String) : ChatUiState()
+    data class Error(val message: String, val model: String? = null) : ChatUiState()
 }
