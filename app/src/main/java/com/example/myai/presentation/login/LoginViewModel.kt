@@ -96,11 +96,11 @@ class LoginViewModel(
             val credentials = "$username:$password"
             val auth = "Basic ${Base64.encodeToString(credentials.toByteArray(), Base64.NO_WRAP)}"
 
-            Log.d("LoginViewModel", "Attempting login to: ${ApiConfig.ROOT_ENDPOINT}")
+            Log.d("LoginViewModel", "Attempting login to: ${ApiConfig.getOllamaBaseUrl(context)}")
             Log.d("LoginViewModel", "Authorization header: Basic ${Base64.encodeToString(credentials.toByteArray(), Base64.NO_WRAP).take(20)}...")
 
             val request = Request.Builder()
-                .url(ApiConfig.ROOT_ENDPOINT)
+                .url(ApiConfig.getOllamaBaseUrl(context))
                 .header("Authorization", auth)
                 .get()
                 .build()
@@ -129,7 +129,7 @@ class LoginViewModel(
             Result.failure(Exception("SSL error: Certificate not trusted. Check if using HTTPS with valid cert."))
         } catch (e: java.net.ConnectException) {
             Log.e("LoginViewModel", "Connection error - server not reachable", e)
-            Result.failure(Exception("Connection failed: Server not reachable at ${ApiConfig.HOST}"))
+            Result.failure(Exception("Connection failed: Server not reachable at ${ApiConfig.getHost(context)}"))
         } catch (e: Exception) {
             Log.e("LoginViewModel", "Network/connection error: ${e::class.java.simpleName}", e)
             Result.failure(Exception("Network error: ${e.message} (${e::class.java.simpleName})"))

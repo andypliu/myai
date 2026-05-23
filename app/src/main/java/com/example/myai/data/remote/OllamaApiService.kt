@@ -41,17 +41,18 @@ class OllamaApiService(private val context: Context) {
         .writeTimeout(60, TimeUnit.SECONDS)
         .addInterceptor { chain ->
             val original = chain.request()
-            val creds = getCredentials()
-            Log.d("OllamaApiService", "Interceptor - creds found: ${creds != null}, username: ${creds?.first}")
-            val request = if (creds != null) {
-                val credentials = "${creds.first}:${creds.second}"
-                val auth = "Basic ${Base64.encodeToString(credentials.toByteArray(), Base64.NO_WRAP)}"
-                Log.d("OllamaApiService", "Interceptor - adding Authorization header")
-                original.newBuilder()
-                    .header("Authorization", auth)
-                    .build()
+            val request = if (ApiConfig.isSecurityEnabled(context)) {
+                val creds = getCredentials()
+                if (creds != null) {
+                    val credentials = "${creds.first}:${creds.second}"
+                    val auth = "Basic ${Base64.encodeToString(credentials.toByteArray(), Base64.NO_WRAP)}"
+                    original.newBuilder()
+                        .header("Authorization", auth)
+                        .build()
+                } else {
+                    original
+                }
             } else {
-                Log.w("OllamaApiService", "Interceptor - no credentials found, sending request without auth")
                 original
             }
             chain.proceed(request)
@@ -72,11 +73,11 @@ class OllamaApiService(private val context: Context) {
             val requestBody = jsonBody.toRequestBody(jsonMediaType)
 
             val httpRequest = Request.Builder()
-                .url(ApiConfig.CHAT_ENDPOINT)
+                .url(ApiConfig.getChatEndpoint(context))
                 .post(requestBody)
                 .build()
 
-            Log.d("OllamaApiService", "Sending request to Ollama API...")
+            Log.d("OllamaApiService", "Sending request to ${ApiConfig.getChatEndpoint(context)}")
             val response = client.newCall(httpRequest).execute()
             Log.d("OllamaApiService", "Response code: ${response.code}")
 

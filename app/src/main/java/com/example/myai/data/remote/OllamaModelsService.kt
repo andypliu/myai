@@ -37,17 +37,18 @@ class OllamaModelsService(private val context: Context) {
         .protocols(listOf(Protocol.HTTP_1_1))
         .addInterceptor { chain ->
             val original = chain.request()
-            val creds = getCredentials()
-            Log.d("OllamaModelsService", "Interceptor - creds found: ${creds != null}, username: ${creds?.first}")
-            val request = if (creds != null) {
-                val credentials = "${creds.first}:${creds.second}"
-                val auth = "Basic ${Base64.encodeToString(credentials.toByteArray(), Base64.NO_WRAP)}"
-                Log.d("OllamaModelsService", "Interceptor - adding Authorization header")
-                original.newBuilder()
-                    .header("Authorization", auth)
-                    .build()
+            val request = if (ApiConfig.isSecurityEnabled(context)) {
+                val creds = getCredentials()
+                if (creds != null) {
+                    val credentials = "${creds.first}:${creds.second}"
+                    val auth = "Basic ${Base64.encodeToString(credentials.toByteArray(), Base64.NO_WRAP)}"
+                    original.newBuilder()
+                        .header("Authorization", auth)
+                        .build()
+                } else {
+                    original
+                }
             } else {
-                Log.w("OllamaModelsService", "Interceptor - no credentials found, sending request without auth")
                 original
             }
             chain.proceed(request)
@@ -58,7 +59,7 @@ class OllamaModelsService(private val context: Context) {
 
     suspend fun getModels(): Result<List<OllamaModel>> = withContext(Dispatchers.IO) {
         try {
-            val url = ApiConfig.MODELS_ENDPOINT
+            val url = ApiConfig.getModelsEndpoint(context)
             val request = Request.Builder()
                 .url(url)
                 .get()

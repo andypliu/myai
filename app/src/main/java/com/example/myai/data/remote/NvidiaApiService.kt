@@ -40,13 +40,17 @@ class NvidiaApiService(private val context: Context) {
         .writeTimeout(60, TimeUnit.SECONDS)
         .addInterceptor { chain ->
             val original = chain.request()
-            val creds = getCredentials()
-            val request = if (creds != null) {
-                val credentials = "${creds.first}:${creds.second}"
-                val auth = "Basic ${Base64.encodeToString(credentials.toByteArray(), Base64.NO_WRAP)}"
-                original.newBuilder()
-                    .header("Authorization", auth)
-                    .build()
+            val request = if (ApiConfig.isSecurityEnabled(context)) {
+                val creds = getCredentials()
+                if (creds != null) {
+                    val credentials = "${creds.first}:${creds.second}"
+                    val auth = "Basic ${Base64.encodeToString(credentials.toByteArray(), Base64.NO_WRAP)}"
+                    original.newBuilder()
+                        .header("Authorization", auth)
+                        .build()
+                } else {
+                    original
+                }
             } else {
                 original
             }
@@ -70,13 +74,13 @@ class NvidiaApiService(private val context: Context) {
             val requestBody = jsonBody.toRequestBody(jsonMediaType)
 
             val httpRequest = Request.Builder()
-                .url(ApiConfig.NVIDIA_CHAT_ENDPOINT)
+                .url(ApiConfig.getNvidiaChatEndpoint(context))
                 .addHeader("Content-Type", "application/json")
                 .addHeader("Accept", "text/event-stream")
                 .post(requestBody)
                 .build()
 
-            Log.d("NvidiaApiService", "Sending request to: ${ApiConfig.NVIDIA_CHAT_ENDPOINT}")
+            Log.d("NvidiaApiService", "Sending request to: ${ApiConfig.getNvidiaChatEndpoint(context)}")
             Log.d("NvidiaApiService", "Model: ${request.model}")
             Log.d("NvidiaApiService", "Full JSON Request Body: $jsonBody")
 
@@ -139,13 +143,13 @@ class NvidiaApiService(private val context: Context) {
             val requestBody = jsonBody.toRequestBody(jsonMediaType)
 
             val httpRequest = Request.Builder()
-                .url(ApiConfig.NVIDIA_CHAT_ENDPOINT)
+                .url(ApiConfig.getNvidiaChatEndpoint(context))
                 .addHeader("Content-Type", "application/json")
                 .addHeader("Accept", "text/event-stream")
                 .post(requestBody)
                 .build()
 
-            Log.d("NvidiaApiService", "Sending request to: ${ApiConfig.NVIDIA_CHAT_ENDPOINT}")
+            Log.d("NvidiaApiService", "Sending request to: ${ApiConfig.getNvidiaChatEndpoint(context)}")
             Log.d("NvidiaApiService", "Model: ${request.model}")
             Log.d("NvidiaApiService", "Full JSON Request Body: $jsonBody")
             

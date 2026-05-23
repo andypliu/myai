@@ -78,7 +78,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.material3.Switch
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Dns
+import com.example.myai.data.config.ApiConfig
 import com.example.myai.domain.model.AiServiceType
 import com.example.myai.ui.theme.GreenDark
 
@@ -96,6 +99,8 @@ fun ProfileScreen(
     val unauthorizedModels by viewModel.unauthorizedModels.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
+    val useLocalHost by viewModel.useLocalHost.collectAsState()
+    val useSecurity by viewModel.useSecurity.collectAsState()
 
     var showAboutDialog by remember { mutableStateOf(false) }
 
@@ -173,6 +178,51 @@ fun ProfileScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onErrorContainer,
                             modifier = Modifier.padding(16.dp)
+                        )
+                    }
+                }
+
+                // Connection Settings Card
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(16.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEEEEEE))
+                ) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.BugReport,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Connection Settings",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        ToggleSetting(
+                            label = "Use Local Host",
+                            description = "Use 10.0.2.2 for debugging",
+                            checked = useLocalHost,
+                            onCheckedChange = { viewModel.toggleLocalHost(it) }
+                        )
+
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFF5F5F5))
+
+                        ToggleSetting(
+                            label = "Enable Security",
+                            description = "Use HTTPS and Authentication",
+                            checked = useSecurity,
+                            onCheckedChange = { viewModel.toggleSecurity(it) }
                         )
                     }
                 }
@@ -535,6 +585,37 @@ fun InfoRow(
             text = value,
             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
             color = MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
+@Composable
+fun ToggleSetting(
+    label: String,
+    description: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange
         )
     }
 }
