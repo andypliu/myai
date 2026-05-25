@@ -15,10 +15,12 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
+import okhttp3.ConnectionSpec
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.TlsVersion
 import java.util.concurrent.TimeUnit
 
 /**
@@ -38,21 +40,30 @@ class NvidiaApiService(private val context: Context) {
         .connectTimeout(60, TimeUnit.SECONDS)
         .readTimeout(300, TimeUnit.SECONDS)
         .writeTimeout(60, TimeUnit.SECONDS)
+        .connectionSpecs(listOf(
+            ConnectionSpec.MODERN_TLS,
+            ConnectionSpec.CLEARTEXT
+        ))
         .addInterceptor { chain ->
             val original = chain.request()
+            val requestBuilder = original.newBuilder()
+                .header("User-Agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+                .header("Accept", "application/json")
+
             val request = if (ApiConfig.isSecurityEnabled(context)) {
                 val creds = getCredentials()
                 if (creds != null) {
                     val credentials = "${creds.first}:${creds.second}"
                     val auth = "Basic ${Base64.encodeToString(credentials.toByteArray(), Base64.NO_WRAP)}"
-                    original.newBuilder()
+                    Log.d("NvidiaApiService", "Authorization: $auth")
+                    requestBuilder
                         .header("Authorization", auth)
                         .build()
                 } else {
-                    original
+                    requestBuilder.build()
                 }
             } else {
-                original
+                requestBuilder.build()
             }
             chain.proceed(request)
         }

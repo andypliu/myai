@@ -25,7 +25,7 @@ class ProfileViewModel(
     private val _useLocalHost = MutableStateFlow(prefs.getBoolean(PREF_USE_LOCAL, false))
     val useLocalHost: StateFlow<Boolean> = _useLocalHost.asStateFlow()
 
-    private val _useSecurity = MutableStateFlow(prefs.getBoolean(PREF_USE_SECURITY, false))
+    private val _useSecurity = MutableStateFlow(prefs.getBoolean(PREF_USE_SECURITY, true))
     val useSecurity: StateFlow<Boolean> = _useSecurity.asStateFlow()
 
     private val _selectedService = MutableStateFlow(

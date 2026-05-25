@@ -13,9 +13,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.ConnectionSpec
 import okhttp3.OkHttpClient
-import okhttp3.Protocol
 import okhttp3.Request
+import okhttp3.TlsVersion
 import java.util.concurrent.TimeUnit
 
 class LoginViewModel(
@@ -45,7 +46,10 @@ class LoginViewModel(
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
-        .protocols(listOf(Protocol.HTTP_1_1))
+        .connectionSpecs(listOf(
+            ConnectionSpec.MODERN_TLS,
+            ConnectionSpec.CLEARTEXT
+        ))
         .build()
 
     init {
@@ -96,12 +100,15 @@ class LoginViewModel(
             val credentials = "$username:$password"
             val auth = "Basic ${Base64.encodeToString(credentials.toByteArray(), Base64.NO_WRAP)}"
 
-            Log.d("LoginViewModel", "Attempting login to: ${ApiConfig.getOllamaBaseUrl(context)}")
-            Log.d("LoginViewModel", "Authorization header: Basic ${Base64.encodeToString(credentials.toByteArray(), Base64.NO_WRAP).take(20)}...")
+            val url = ApiConfig.getOllamaBaseUrl(context)
+            Log.d("LoginViewModel", "Attempting login to: $url")
+            Log.d("LoginViewModel", "Authorization header: $auth")
 
             val request = Request.Builder()
-                .url(ApiConfig.getOllamaBaseUrl(context))
+                .url(url)
                 .header("Authorization", auth)
+                .header("User-Agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+                .header("Accept", "application/json")
                 .get()
                 .build()
 

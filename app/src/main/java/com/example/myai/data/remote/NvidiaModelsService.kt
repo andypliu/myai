@@ -7,8 +7,10 @@ import com.example.myai.domain.model.OllamaModel
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.ConnectionSpec
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.TlsVersion
 import org.jsoup.Jsoup
 import java.util.concurrent.TimeUnit
 
@@ -17,6 +19,10 @@ class NvidiaModelsService(private val context: Context) {
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
+        .connectionSpecs(listOf(
+            ConnectionSpec.MODERN_TLS,
+            ConnectionSpec.CLEARTEXT
+        ))
         .build()
 
     private val gson = Gson()
