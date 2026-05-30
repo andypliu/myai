@@ -21,6 +21,8 @@ class ChatRepositoryImpl(
         return when (serviceType) {
             AiServiceType.OLLAMA -> ollamaDataSource.sendMessage(request)
             AiServiceType.NVIDIA -> nvidiaDataSource.sendMessage(request)
+            AiServiceType.ON_DEVICE -> Result.failure(Exception("Use sendMessageStream for ON_DEVICE"))
+            AiServiceType.AICORE -> Result.failure(Exception("Use sendMessageStream for AICORE"))
         }
     }
 
@@ -28,6 +30,8 @@ class ChatRepositoryImpl(
         return when (serviceType) {
             AiServiceType.OLLAMA -> throw UnsupportedOperationException("Ollama streaming not implemented")
             AiServiceType.NVIDIA -> nvidiaDataSource.sendMessageStream(request)
+            AiServiceType.ON_DEVICE -> throw UnsupportedOperationException("On-device handled in ViewModel for now")
+            AiServiceType.AICORE -> throw UnsupportedOperationException("AI Core handled in ViewModel for now")
         }
     }
 }

@@ -17,7 +17,7 @@ class ChatViewModelFactory(
             val apiService = OllamaApiService(context)
             val dataSource: ChatDataSource = OllamaDataSource(apiService)
             val nvidiaApiService = NvidiaApiService(context)
-            return ChatViewModel(dataSource, nvidiaApiService) as T
+            return ChatViewModel(dataSource, nvidiaApiService, context) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

@@ -33,6 +33,8 @@ import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.ModelTraining
 import androidx.compose.material3.AlertDialog
@@ -42,6 +44,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -50,6 +53,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -72,18 +76,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.vector.ImageVector
+import com.example.myai.domain.model.AiServiceType
+import com.example.myai.domain.ondevice.ModelDownloadState
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.Switch
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Dns
 import com.example.myai.data.config.ApiConfig
-import com.example.myai.domain.model.AiServiceType
-import com.example.myai.ui.theme.GreenDark
+import com.google.firebase.ai.ondevice.DownloadStatus
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -101,6 +107,8 @@ fun ProfileScreen(
     val error by viewModel.error.collectAsState()
     val useLocalHost by viewModel.useLocalHost.collectAsState()
     val useSecurity by viewModel.useSecurity.collectAsState()
+    val onDeviceDownloadState by viewModel.onDeviceDownloadState.collectAsState()
+    val aiCoreStatus by viewModel.aiCoreStatus.collectAsState()
 
     var showAboutDialog by remember { mutableStateOf(false) }
 
@@ -182,51 +190,6 @@ fun ProfileScreen(
                     }
                 }
 
-                // Connection Settings Card
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(16.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEEEEEE))
-                ) {
-                    Column(modifier = Modifier.padding(20.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.BugReport,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Connection Settings",
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        ToggleSetting(
-                            label = "Use Local Host",
-                            description = "Use 10.0.2.2 for debugging",
-                            checked = useLocalHost,
-                            onCheckedChange = { viewModel.toggleLocalHost(it) }
-                        )
-
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFF5F5F5))
-
-                        ToggleSetting(
-                            label = "Enable Security",
-                            description = "Use HTTPS and Authentication",
-                            checked = useSecurity,
-                            onCheckedChange = { viewModel.toggleSecurity(it) }
-                        )
-                    }
-                }
-
                 // Service Selection Card
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -300,7 +263,19 @@ fun ProfileScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        if (selectedService == AiServiceType.NVIDIA) {
+                        if (selectedService == AiServiceType.ON_DEVICE) {
+                            OnDeviceModelUI(
+                                state = onDeviceDownloadState,
+                                onDownloadClick = { viewModel.startOnDeviceDownload() }
+                            )
+                        } else if (selectedService == AiServiceType.AICORE) {
+                            val aiCoreDownloadProgress by viewModel.aiCoreDownloadProgress.collectAsState()
+                            AiCoreStatusUI(
+                                status = aiCoreStatus,
+                                downloadStatus = aiCoreDownloadProgress,
+                                viewModel = viewModel
+                            )
+                        } else if (selectedService == AiServiceType.NVIDIA) {
                             ModelDropdown(
                                 models = availableModels,
                                 unauthorizedModels = unauthorizedModels,
@@ -421,6 +396,51 @@ fun ProfileScreen(
                     }
                 }
 
+                // Connection Settings Card
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(16.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEEEEEE))
+                ) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.BugReport,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Connection Settings",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        ToggleSetting(
+                            label = "Use Local Host",
+                            description = "Use 10.0.2.2 for debugging",
+                            checked = useLocalHost,
+                            onCheckedChange = { viewModel.toggleLocalHost(it) }
+                        )
+
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFF5F5F5))
+
+                        ToggleSetting(
+                            label = "Enable Security",
+                            description = "Use HTTPS and Authentication",
+                            checked = useSecurity,
+                            onCheckedChange = { viewModel.toggleSecurity(it) }
+                        )
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Logout Button
@@ -474,6 +494,251 @@ fun ProfileScreen(
                 }
             }
         )
+    }
+}
+
+@Composable
+fun AiCoreStatusUI(
+    status: com.example.myai.data.ondevice.AiCoreStatus,
+    downloadStatus: DownloadStatus?,
+    viewModel: ProfileViewModel
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        if (downloadStatus != null && downloadStatus !is DownloadStatus.DownloadCompleted) {
+            AiCoreDownloadUI(downloadStatus)
+        } else {
+            when (status) {
+                is com.example.myai.data.ondevice.AiCoreStatus.Available -> {
+                    StatusCard(
+                        icon = Icons.Default.CheckCircle,
+                        text = "Gemini Nano is ready via AI Core",
+                        iconColor = Color(0xFF4CAF50)
+                    )
+                }
+                is com.example.myai.data.ondevice.AiCoreStatus.Downloadable -> {
+                    Text(
+                        "Model is available to be linked to this app.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Button(
+                        onClick = { viewModel.startAiCoreDownload() },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Download, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Initialize AI Core Model")
+                    }
+                }
+                is com.example.myai.data.ondevice.AiCoreStatus.AiCoreMissing -> {
+                    Text(
+                        "Android AI Core is not installed or outdated.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Button(
+                        onClick = { viewModel.openAiCorePlayStore() },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Download, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Install/Update AI Core")
+                    }
+                }
+                is com.example.myai.data.ondevice.AiCoreStatus.ModelDownloading -> {
+                    CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                    Text("AI Core is downloading the model...")
+                    TextButton(onClick = { viewModel.checkAiCoreStatus() }) {
+                        Text("Refresh Status")
+                    }
+                }
+                is com.example.myai.data.ondevice.AiCoreStatus.WaitingForWifi -> {
+                    Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Text("Waiting for Wi-Fi to download model.")
+                    Button(onClick = { viewModel.checkAiCoreStatus() }) {
+                        Text("Check Again")
+                    }
+                }
+                is com.example.myai.data.ondevice.AiCoreStatus.Unavailable -> {
+                    Text(
+                        "AI Core Unavailable: ${status.message}",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Button(onClick = { viewModel.checkAiCoreStatus() }) {
+                        Text("Retry")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AiCoreDownloadUI(status: DownloadStatus) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        when (status) {
+            is DownloadStatus.DownloadStarted -> {
+                Text("Starting AI Core download...")
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+            is DownloadStatus.DownloadInProgress -> {
+                // Simplified UI for DownloadInProgress as properties vary by beta version
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                Text("Downloading AI Core model...")
+            }
+            is DownloadStatus.DownloadFailed -> {
+                Text("Download failed", color = MaterialTheme.colorScheme.error)
+            }
+            else -> {}
+        }
+    }
+}
+
+@Composable
+private fun StatusCard(
+    icon: ImageVector,
+    text: String,
+    iconColor: Color
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                RoundedCornerShape(12.dp)
+            )
+            .padding(16.dp)
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = iconColor
+        )
+        Spacer(Modifier.width(12.dp))
+        Text(
+            text,
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.onPrimaryContainer
+        )
+    }
+}
+
+@Composable
+fun OnDeviceModelUI(
+    state: ModelDownloadState,
+    onDownloadClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        when (state) {
+            is ModelDownloadState.Idle -> {
+                Button(
+                    onClick = onDownloadClick,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.Download, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Download Gemma 2B (~1.5GB)")
+                }
+                Text(
+                    "Requires Wi-Fi and 4.5GB free space",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            is ModelDownloadState.CheckingStorage -> {
+                CircularProgressIndicator()
+                Text("Checking storage requirements...")
+            }
+            is ModelDownloadState.Downloading -> {
+                LinearProgressIndicator(
+                    progress = { state.progress },
+                    modifier = Modifier.fillMaxWidth().height(8.dp),
+                    strokeCap = StrokeCap.Round
+                )
+                
+                val progressText = remember(state.totalBytes, state.contentLength) {
+                    if (state.contentLength > 0) {
+                        val downloadedGb = state.totalBytes / (1024.0 * 1024.0 * 1024.0)
+                        val totalGb = state.contentLength / (1024.0 * 1024.0 * 1024.0)
+                        "Downloading: %.2f GB / %.2f GB (%d%%)".format(
+                            downloadedGb, 
+                            totalGb, 
+                            (state.progress * 100).toInt()
+                        )
+                    } else {
+                        "Downloading: ${(state.progress * 100).toInt()}%"
+                    }
+                }
+
+                Text(
+                    text = progressText,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+            is ModelDownloadState.InitializingEngine -> {
+                CircularProgressIndicator()
+                Text("Initializing AI Engine...")
+            }
+            is ModelDownloadState.Ready -> {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                            RoundedCornerShape(12.dp)
+                        )
+                        .padding(16.dp)
+                ) {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = Color(0xFF4CAF50)
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        "Gemma 2B is ready for offline use",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
+            is ModelDownloadState.Error -> {
+                Text(
+                    state.message,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Button(
+                    onClick = onDownloadClick,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                ) {
+                    Text("Retry Download")
+                }
+            }
+        }
     }
 }
 

@@ -12,6 +12,10 @@ import com.example.myai.domain.model.ChatMessage
 import com.example.myai.domain.model.FileAttachment
 import com.example.myai.domain.usecase.SendMessageUseCase
 import com.example.myai.domain.util.FileProcessor
+import com.example.myai.data.ondevice.LiteRTLMEngine
+import com.example.myai.data.ondevice.ModelDownloadManager
+import com.example.myai.data.ondevice.AiCoreManager
+import com.example.myai.data.ondevice.AiCoreStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,10 +28,14 @@ import java.util.UUID
 
 class ChatViewModel(
     private val ollamaDataSource: ChatDataSource,
-    private val nvidiaApiService: NvidiaApiService
+    private val nvidiaApiService: NvidiaApiService,
+    private val context: Context
 ) : ViewModel() {
     private val repository = ChatRepositoryImpl(ollamaDataSource, nvidiaApiService)
     private val sendMessageUseCase = SendMessageUseCase(repository)
+    private val litertEngine = LiteRTLMEngine.getInstance(context)
+    private val downloadManager = ModelDownloadManager.getInstance(context)
+    private val aiCoreManager = AiCoreManager.getInstance(context)
 
     private val _uiState = MutableStateFlow<ChatUiState>(ChatUiState.Idle)
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
@@ -113,8 +121,74 @@ class ChatViewModel(
 
             val currentModel = _selectedModel.value
             try {
-                // Send with current service type
-                if (_selectedService.value == AiServiceType.NVIDIA) {
+                if (_selectedService.value == AiServiceType.ON_DEVICE) {
+                    if (!downloadManager.isModelDownloaded()) {
+                        _messages.update { list -> list.filter { it.id != assistantMessageId } }
+                        _uiState.value = ChatUiState.Error("Model not downloaded. Go to Profile to download.", currentModel)
+                        return@launch
+                    }
+
+                    try {
+                        litertEngine.initialize(downloadManager.getModelFile())
+                        litertEngine.generateStreamingResponse(message)
+                            .onCompletion {
+                                _newMessageId.value = assistantMessageId
+                            }
+                            .collect { chunk ->
+                                _messages.update { list ->
+                                    list.map { msg ->
+                                        if (msg.id == assistantMessageId) {
+                                            val newContent = msg.content + chunk
+                                            msg.copy(
+                                                content = newContent,
+                                                isTyping = newContent.isEmpty()
+                                            )
+                                        } else msg
+                                    }
+                                }
+                            }
+                    } catch (e: Exception) {
+                        _messages.update { list -> list.filter { it.id != assistantMessageId } }
+                        _uiState.value = ChatUiState.Error("Inference failed: ${e.message}", currentModel)
+                    }
+                } else if (_selectedService.value == AiServiceType.AICORE) {
+                    val status = aiCoreManager.checkStatus()
+                    if (status !is AiCoreStatus.Available) {
+                        _messages.update { list -> list.filter { it.id != assistantMessageId } }
+                        val errorMsg = when(status) {
+                            is AiCoreStatus.AiCoreMissing -> "AI Core not installed. Go to Profile."
+                            is AiCoreStatus.ModelDownloading -> "Model downloading. Please wait."
+                            is AiCoreStatus.WaitingForWifi -> "Waiting for Wi-Fi to download model."
+                            is AiCoreStatus.Unavailable -> "AI Core unavailable: ${status.message}"
+                            else -> "AI Core not ready."
+                        }
+                        _uiState.value = ChatUiState.Error(errorMsg, currentModel)
+                        return@launch
+                    }
+
+                    try {
+                        aiCoreManager.generateStreamingResponse(message)
+                            .onCompletion {
+                                _newMessageId.value = assistantMessageId
+                            }
+                            .collect { chunk ->
+                                _messages.update { list ->
+                                    list.map { msg ->
+                                        if (msg.id == assistantMessageId) {
+                                            val newContent = msg.content + chunk
+                                            msg.copy(
+                                                content = newContent,
+                                                isTyping = newContent.isEmpty()
+                                            )
+                                        } else msg
+                                    }
+                                }
+                            }
+                    } catch (e: Exception) {
+                        _messages.update { list -> list.filter { it.id != assistantMessageId } }
+                        _uiState.value = ChatUiState.Error("AI Core error: ${e.message}", currentModel)
+                    }
+                } else if (_selectedService.value == AiServiceType.NVIDIA) {
                     sendMessageUseCase.invokeStream(
                         _messages.value.filter { it.id != assistantMessageId },
                         message,
@@ -199,6 +273,13 @@ class ChatViewModel(
 
     fun clearError() {
         _uiState.value = ChatUiState.Idle
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        viewModelScope.launch {
+            litertEngine.close()
+        }
     }
 }
 

@@ -26,6 +26,8 @@ class ModelsRepositoryImpl(
                     cachedNvidiaModels = it
                 }
             }
+            AiServiceType.ON_DEVICE -> Result.success(listOf(OllamaModel("Gemma 2B", "just now", 0)))
+            AiServiceType.AICORE -> Result.success(listOf(OllamaModel("Gemini Nano", "system", 0)))
         }
     }
 
@@ -37,6 +39,8 @@ class ModelsRepositoryImpl(
                     cachedNvidiaModels = it
                 }
             }
+            AiServiceType.ON_DEVICE -> Result.success(listOf(OllamaModel("Gemma 2B", "just now", 0)))
+            AiServiceType.AICORE -> Result.success(listOf(OllamaModel("Gemini Nano", "system", 0)))
         }
     }
 }
