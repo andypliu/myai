@@ -24,6 +24,8 @@ android {
         }
         val hfToken = localProperties.getProperty("HF_TOKEN") ?: ""
         buildConfigField("String", "HF_TOKEN", "\"$hfToken\"")
+        val googleApiKey = localProperties.getProperty("GOOGLE_API_KEY") ?: ""
+        buildConfigField("String", "GOOGLE_API_KEY", "\"$googleApiKey\"")
     }
 
     buildTypes {

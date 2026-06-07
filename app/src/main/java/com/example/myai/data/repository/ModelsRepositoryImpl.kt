@@ -26,6 +26,10 @@ class ModelsRepositoryImpl(
                     cachedNvidiaModels = it
                 }
             }
+            AiServiceType.GOOGLE -> Result.success(listOf(
+                OllamaModel("gemini-3.5-flash", "google", 0),
+                OllamaModel("gemini-3.1-flash-lite", "google", 0)
+            ))
             AiServiceType.ON_DEVICE -> Result.success(listOf(OllamaModel("Gemma 2B", "just now", 0)))
             AiServiceType.AICORE -> Result.success(listOf(OllamaModel("Gemini Nano", "system", 0)))
         }
@@ -39,6 +43,10 @@ class ModelsRepositoryImpl(
                     cachedNvidiaModels = it
                 }
             }
+            AiServiceType.GOOGLE -> Result.success(listOf(
+                OllamaModel("gemini-3.5-flash", "google", 0),
+                OllamaModel("gemini-3.1-flash-lite", "google", 0)
+            ))
             AiServiceType.ON_DEVICE -> Result.success(listOf(OllamaModel("Gemma 2B", "just now", 0)))
             AiServiceType.AICORE -> Result.success(listOf(OllamaModel("Gemini Nano", "system", 0)))
         }
