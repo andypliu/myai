@@ -742,30 +742,59 @@ fun OnDeviceModelUI(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ServiceSelector(
     selectedService: AiServiceType,
     onServiceSelected: (AiServiceType) -> Unit
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded },
+        modifier = Modifier.fillMaxWidth()
     ) {
-        AiServiceType.values().forEach { service ->
-            val isSelected = service == selectedService
-            Button(
-                onClick = { onServiceSelected(service) },
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFFF5F5F5),
-                    contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                ),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = if (isSelected) 2.dp else 0.dp)
-            ) {
-                Text(
-                    text = service.label,
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+        OutlinedTextField(
+            value = selectedService.label,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Select Service") },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(),
+            shape = RoundedCornerShape(12.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                focusedLabelColor = MaterialTheme.colorScheme.primary,
+                unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        )
+
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.background(Color.White)
+        ) {
+            AiServiceType.values().forEach { service ->
+                DropdownMenuItem(
+                    text = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = service.label,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = if (service == selectedService) FontWeight.Bold else FontWeight.Normal,
+                                color = if (service == selectedService) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    },
+                    onClick = {
+                        onServiceSelected(service)
+                        expanded = false
+                    },
+                    modifier = Modifier.background(if (service == selectedService) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f) else Color.White)
                 )
             }
         }
