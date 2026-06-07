@@ -85,6 +85,10 @@ import com.example.myai.domain.model.AiServiceType
 import com.example.myai.domain.ondevice.ModelDownloadState
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material3.Switch
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Dns
@@ -109,11 +113,12 @@ fun ProfileScreen(
     val useSecurity by viewModel.useSecurity.collectAsState()
     val onDeviceDownloadState by viewModel.onDeviceDownloadState.collectAsState()
     val aiCoreStatus by viewModel.aiCoreStatus.collectAsState()
+    val isDarkMode by viewModel.isDarkMode.collectAsState()
 
     var showAboutDialog by remember { mutableStateOf(false) }
 
     Scaffold(
-        containerColor = Color.White,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = { 
@@ -195,7 +200,7 @@ fun ProfileScreen(
                     modifier = Modifier.fillMaxWidth(),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color.White
+                        containerColor = MaterialTheme.colorScheme.surface
                     ),
                     shape = RoundedCornerShape(16.dp),
                     border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEEEEEE))
@@ -235,7 +240,7 @@ fun ProfileScreen(
                     modifier = Modifier.fillMaxWidth(),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color.White
+                        containerColor = MaterialTheme.colorScheme.surface
                     ),
                     shape = RoundedCornerShape(16.dp),
                     border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEEEEEE))
@@ -350,7 +355,7 @@ fun ProfileScreen(
                     modifier = Modifier.fillMaxWidth(),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color.White
+                        containerColor = MaterialTheme.colorScheme.surface
                     ),
                     shape = RoundedCornerShape(16.dp),
                     border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEEEEEE))
@@ -376,7 +381,7 @@ fun ProfileScreen(
                     modifier = Modifier.fillMaxWidth(),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color.White
+                        containerColor = MaterialTheme.colorScheme.surface
                     ),
                     shape = RoundedCornerShape(16.dp),
                     border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEEEEEE))
@@ -401,7 +406,7 @@ fun ProfileScreen(
                     modifier = Modifier.fillMaxWidth(),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color.White
+                        containerColor = MaterialTheme.colorScheme.surface
                     ),
                     shape = RoundedCornerShape(16.dp),
                     border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEEEEEE))
@@ -437,6 +442,42 @@ fun ProfileScreen(
                             description = "Use HTTPS and Authentication",
                             checked = useSecurity,
                             onCheckedChange = { viewModel.toggleSecurity(it) }
+                        )
+                    }
+                }
+
+                // Theme Settings Card
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    shape = RoundedCornerShape(16.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEEEEEE))
+                ) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = if (isDarkMode) Icons.Default.DarkMode else Icons.Default.LightMode,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Theme Settings",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        ToggleSetting(
+                            label = "Dark Mode",
+                            description = "Enable dark theme across the app",
+                            checked = isDarkMode,
+                            onCheckedChange = { viewModel.toggleDarkMode(it) }
                         )
                     }
                 }
@@ -776,7 +817,7 @@ fun ServiceSelector(
         ExposedDropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
-            modifier = Modifier.background(Color.White)
+            modifier = Modifier.background(MaterialTheme.colorScheme.surface)
         ) {
             AiServiceType.values().forEach { service ->
                 DropdownMenuItem(
@@ -794,7 +835,7 @@ fun ServiceSelector(
                         onServiceSelected(service)
                         expanded = false
                     },
-                    modifier = Modifier.background(if (service == selectedService) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f) else Color.White)
+                    modifier = Modifier.background(if (service == selectedService) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surface)
                 )
             }
         }
@@ -838,7 +879,7 @@ fun ModelDropdown(
         ExposedDropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
-            modifier = Modifier.background(Color.White)
+            modifier = Modifier.background(MaterialTheme.colorScheme.surface)
         ) {
             models.forEach { model ->
                 val isUnauthorized = unauthorizedModels.contains(model)
@@ -854,7 +895,7 @@ fun ModelDropdown(
                         onModelSelected(model)
                         expanded = false
                     },
-                    modifier = Modifier.background(if (model == selectedModel) Color(0xFFF1F8E9) else Color.White)
+                    modifier = Modifier.background(if (model == selectedModel) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surface)
                 )
             }
         }

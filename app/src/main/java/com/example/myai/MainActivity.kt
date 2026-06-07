@@ -49,9 +49,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            MyAITheme {
-                MyAIApp()
-            }
+            MyAIApp()
         }
     }
 }
@@ -63,22 +61,31 @@ fun MyAIApp() {
     val loginViewModel: LoginViewModel = viewModel(
         factory = LoginViewModelFactory(context)
     )
+    val profileViewModel: ProfileViewModel = viewModel(
+        factory = ProfileViewModelFactory(context)
+    )
     val isLoggedIn by loginViewModel.isLoggedIn.collectAsState()
+    val isDarkMode by profileViewModel.isDarkMode.collectAsState()
 
-    if (!isLoggedIn) {
-        LoginScreen(viewModel = loginViewModel)
-    } else {
-        MainAppContent(onLogout = loginViewModel::logout)
+    MyAITheme(darkTheme = isDarkMode) {
+        if (!isLoggedIn) {
+            LoginScreen(viewModel = loginViewModel)
+        } else {
+            MainAppContent(
+                onLogout = loginViewModel::logout,
+                profileViewModel = profileViewModel
+            )
+        }
     }
 }
 
 @Composable
-fun MainAppContent(onLogout: () -> Unit) {
+fun MainAppContent(
+    onLogout: () -> Unit,
+    profileViewModel: ProfileViewModel
+) {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
     val context = LocalContext.current
-    val profileViewModel: ProfileViewModel = viewModel(
-        factory = ProfileViewModelFactory(context)
-    )
     val chatViewModel: ChatViewModel = viewModel(
         factory = ChatViewModelFactory(context)
     )
@@ -107,7 +114,10 @@ fun MainAppContent(onLogout: () -> Unit) {
                         name = "Favorites",
                         modifier = Modifier.fillMaxSize()
                     )
-                    AppDestinations.PROFILE -> ProfileScreen(onLogout = onLogout)
+                    AppDestinations.PROFILE -> ProfileScreen(
+                        onLogout = onLogout,
+                        viewModel = profileViewModel
+                    )
                 }
             }
 

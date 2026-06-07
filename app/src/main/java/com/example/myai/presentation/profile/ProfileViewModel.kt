@@ -39,12 +39,16 @@ class ProfileViewModel(
     private val PREF_SELECTED_SERVICE = "selected_service"
     private val PREF_USE_LOCAL = "use_local_host"
     private val PREF_USE_SECURITY = "use_security"
+    private val PREF_IS_DARK_MODE = "is_dark_mode"
 
     private val _useLocalHost = MutableStateFlow(prefs.getBoolean(PREF_USE_LOCAL, false))
     val useLocalHost: StateFlow<Boolean> = _useLocalHost.asStateFlow()
 
     private val _useSecurity = MutableStateFlow(prefs.getBoolean(PREF_USE_SECURITY, true))
     val useSecurity: StateFlow<Boolean> = _useSecurity.asStateFlow()
+
+    private val _isDarkMode = MutableStateFlow(prefs.getBoolean(PREF_IS_DARK_MODE, false))
+    val isDarkMode: StateFlow<Boolean> = _isDarkMode.asStateFlow()
 
     private val _selectedService = MutableStateFlow(
         AiServiceType.valueOf(prefs.getString(PREF_SELECTED_SERVICE, AiServiceType.OLLAMA.name) ?: AiServiceType.OLLAMA.name)
@@ -191,6 +195,11 @@ class ProfileViewModel(
         _useSecurity.value = enabled
         prefs.edit().putBoolean(PREF_USE_SECURITY, enabled).apply()
         fetchModels(_selectedService.value, refresh = true)
+    }
+
+    fun toggleDarkMode(enabled: Boolean) {
+        _isDarkMode.value = enabled
+        prefs.edit().putBoolean(PREF_IS_DARK_MODE, enabled).apply()
     }
 
     fun markModelAsUnauthorized(model: String) {
