@@ -72,6 +72,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myai.domain.model.ChatMessage
 import com.example.myai.domain.model.FileAttachment
+import com.example.myai.domain.model.AiServiceType
 import com.example.myai.presentation.profile.ProfileViewModel
 import com.example.myai.domain.util.FileProcessor
 import com.example.myai.ui.theme.GreenDark
@@ -173,15 +174,25 @@ fun ChatScreen(
                         color = MaterialTheme.colorScheme.onPrimary,
                         maxLines = 1
                     )
-                    // Display selected model name in dark green
+                    // Display selected model name
                     if (selectedModel.isNotEmpty()) {
-                        val formattedModel = remember(selectedModel) {
-                            selectedModel.removeSuffix(":free")
+                        val formattedModel = remember(selectedModel, selectedService) {
+                            val displayName = selectedModel.removeSuffix(":free")
                                 .substringAfter('/')
                                 .split("-")
                                 .joinToString(" ") { word ->
                                     word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
                                 }
+                            
+                            if (selectedService == AiServiceType.OPENROUTER) {
+                                if (displayName.equals("Free", ignoreCase = true) || selectedModel == "openrouter/free") {
+                                    "OpenRouter"
+                                } else {
+                                    displayName
+                                }
+                            } else {
+                                displayName
+                            }
                         }
                         Spacer(modifier = Modifier.width(24.dp))
                         Text(
