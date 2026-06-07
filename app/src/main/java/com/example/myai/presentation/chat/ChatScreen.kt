@@ -176,7 +176,8 @@ fun ChatScreen(
                     // Display selected model name in dark green
                     if (selectedModel.isNotEmpty()) {
                         val formattedModel = remember(selectedModel) {
-                            selectedModel.substringAfter('/')
+                            selectedModel.removeSuffix(":free")
+                                .substringAfter('/')
                                 .split("-")
                                 .joinToString(" ") { word ->
                                     word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }

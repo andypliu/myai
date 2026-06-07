@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModelProvider
 import com.example.myai.data.remote.NvidiaApiService
 import com.example.myai.data.remote.OllamaApiService
 import com.example.myai.data.remote.GoogleApiService
+import com.example.myai.data.remote.OpenRouterApiService
 import com.example.myai.data.source.ChatDataSource
 import com.example.myai.data.source.OllamaDataSource
 
@@ -19,7 +20,8 @@ class ChatViewModelFactory(
             val dataSource: ChatDataSource = OllamaDataSource(apiService)
             val nvidiaApiService = NvidiaApiService(context)
             val googleApiService = GoogleApiService()
-            return ChatViewModel(dataSource, nvidiaApiService, googleApiService, context) as T
+            val openRouterApiService = OpenRouterApiService()
+            return ChatViewModel(dataSource, nvidiaApiService, googleApiService, openRouterApiService, context) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

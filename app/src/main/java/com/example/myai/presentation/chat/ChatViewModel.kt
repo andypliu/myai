@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.myai.data.remote.NvidiaApiService
 import com.example.myai.data.remote.GoogleApiService
+import com.example.myai.data.remote.OpenRouterApiService
 import com.example.myai.data.source.ChatDataSource
 import com.example.myai.data.repository.ChatRepositoryImpl
 import com.example.myai.domain.model.AiServiceType
@@ -31,9 +32,10 @@ class ChatViewModel(
     private val ollamaDataSource: ChatDataSource,
     private val nvidiaApiService: NvidiaApiService,
     private val googleApiService: GoogleApiService,
+    private val openRouterApiService: OpenRouterApiService,
     private val context: Context
 ) : ViewModel() {
-    private val repository = ChatRepositoryImpl(ollamaDataSource, nvidiaApiService, googleApiService)
+    private val repository = ChatRepositoryImpl(ollamaDataSource, nvidiaApiService, googleApiService, openRouterApiService)
     private val sendMessageUseCase = SendMessageUseCase(repository)
     private val litertEngine = LiteRTLMEngine.getInstance(context)
     private val downloadManager = ModelDownloadManager.getInstance(context)

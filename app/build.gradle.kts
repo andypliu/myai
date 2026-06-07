@@ -26,6 +26,8 @@ android {
         buildConfigField("String", "HF_TOKEN", "\"$hfToken\"")
         val googleApiKey = localProperties.getProperty("GOOGLE_API_KEY") ?: ""
         buildConfigField("String", "GOOGLE_API_KEY", "\"$googleApiKey\"")
+        val openRouterApiKey = localProperties.getProperty("OPENROUTER_API_KEY") ?: ""
+        buildConfigField("String", "OPENROUTER_API_KEY", "\"$openRouterApiKey\"")
     }
 
     buildTypes {

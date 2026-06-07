@@ -33,6 +33,22 @@ class ModelsRepositoryImpl(
             ))
             AiServiceType.ON_DEVICE -> Result.success(listOf(OllamaModel("Gemma 2B", "just now", 0)))
             AiServiceType.AICORE -> Result.success(listOf(OllamaModel("Gemini Nano", "system", 0)))
+            AiServiceType.OPENROUTER -> Result.success(listOf(
+                OllamaModel("openrouter/free", "openrouter", 0),
+                OllamaModel("openai/gpt-oss-120b:free", "openrouter", 0),
+                OllamaModel("google/gemma-4-31b-it:free", "openrouter", 0),
+                OllamaModel("z-ai/glm-4.5-air:free", "openrouter", 0),
+                OllamaModel("nvidia/nemotron-3-super-120b-a12b:free", "openrouter", 0),
+                OllamaModel("poolside/laguna-m.1:free", "openrouter", 0),
+                OllamaModel("nvidia/nemotron-3-ultra-550b-a55b:free", "openrouter", 0),
+                OllamaModel("nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", "openrouter", 0),
+                OllamaModel("nvidia/nemotron-nano-12b-v2-vl:free", "openrouter", 0),
+                OllamaModel("liquid/lfm-2.5-1.2b-thinking:free", "openrouter", 0),
+                OllamaModel("liquid/lfm-2.5-1.2b-instruct:free", "openrouter", 0),
+                OllamaModel("nvidia/nemotron-3.5-content-safety:free", "openrouter", 0),
+                OllamaModel("meta-llama/llama-3.3-70b-instruct:free", "openrouter", 0),
+                OllamaModel("nousresearch/hermes-3-llama-3.1-405b:free", "openrouter", 0)
+            ))
         }
     }
 
@@ -51,6 +67,7 @@ class ModelsRepositoryImpl(
             ))
             AiServiceType.ON_DEVICE -> Result.success(listOf(OllamaModel("Gemma 2B", "just now", 0)))
             AiServiceType.AICORE -> Result.success(listOf(OllamaModel("Gemini Nano", "system", 0)))
+            AiServiceType.OPENROUTER -> getAvailableModels(AiServiceType.OPENROUTER)
         }
     }
 }
