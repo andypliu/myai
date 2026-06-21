@@ -300,7 +300,7 @@ fun MessageBubble(
                         Icon(
                             imageVector = if (isLiked == true) Icons.Default.Favorite else Icons.Outlined.Favorite,
                             contentDescription = "Love",
-                            tint = if (isLiked == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = if (isLiked == true) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -354,7 +354,7 @@ fun MessageBubble(
                     Icon(
                         imageVector = if (isLiked) Icons.Default.Favorite else Icons.Default.HeartBroken,
                         contentDescription = if (isLiked) "Loved" else "Disloved",
-                        tint = if (isLiked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                        tint = if (isLiked) Color.Red else MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(14.dp)
                     )
                 }

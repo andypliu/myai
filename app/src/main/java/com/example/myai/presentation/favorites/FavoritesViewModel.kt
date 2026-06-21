@@ -28,4 +28,13 @@ class FavoritesViewModel(context: Context) : ViewModel() {
             feedbackDao.deleteFeedback(messageId)
         }
     }
+
+    fun toggleFeedback(messageId: String, isLiked: Boolean) {
+        viewModelScope.launch {
+            val current = feedbackDao.getFeedbackForMessage(messageId)
+            current?.let {
+                feedbackDao.insertFeedback(it.copy(isLiked = isLiked))
+            }
+        }
+    }
 }
