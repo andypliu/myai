@@ -80,6 +80,9 @@ import com.example.myai.domain.model.AiServiceType
 import com.example.myai.presentation.profile.ProfileViewModel
 import com.example.myai.domain.util.FileProcessor
 import com.example.myai.ui.theme.GreenDark
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -105,43 +108,18 @@ fun ChatScreen(
 
     // Detect if keyboard is open to scroll to bottom
     val isKeyboardOpen = WindowInsets.ime.asPaddingValues().calculateBottomPadding() > 0.dp
-    LaunchedEffect(isKeyboardOpen) {
-        if (isKeyboardOpen && messages.isNotEmpty()) {
-            delay(100)
-            listState.animateScrollToItem(messages.size - 1)
-        }
-    }
 
-    // Monitor for errors and mark model as unauthorized
-    LaunchedEffect(uiState) {
-        val state = uiState
-        if (state is ChatUiState.Error) {
-            val errorModel = state.model ?: selectedModel
-            profileViewModel.markModelAsUnauthorized(errorModel)
-        }
-    }
-
-    // File picker launcher
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
-    ) { uri: android.net.Uri? ->
+    ) { uri ->
         uri?.let {
-            val fileInfo = FileProcessor.getFileInfo(context, it)
-            fileInfo?.let { attachment ->
-                viewModel.addAttachment(attachment)
-            }
+            val attachment = FileProcessor.getFileInfo(context, it)
+            attachment?.let { att -> viewModel.addAttachment(att) }
         }
     }
 
-    // Auto-scroll to bottom when new messages arrive
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size - 1)
-        }
-    }
-
-    // Scroll to bottom when a new message is added (for long responses)
-    LaunchedEffect(newMessageId) {
+    // Scroll to bottom when a new message is added or keyboard is opened
+    LaunchedEffect(messages.size, newMessageId, isKeyboardOpen) {
         if (messages.isNotEmpty()) {
             listState.animateScrollToItem(messages.size - 1)
         }
@@ -150,120 +128,23 @@ fun ChatScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .pointerInput(Unit) {
-                detectTapGestures(onTap = {
-                    focusManager.clearFocus()
-                })
-            }
+            .background(MaterialTheme.colorScheme.background)
     ) {
         Column(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = 8.dp)
         ) {
-            // Header with colored background that includes status bar area
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.primary)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Chat with AI",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        maxLines = 1
-                    )
-                    // Display selected model name
-                    if (selectedModel.isNotEmpty()) {
-                        val formattedModel = remember(selectedModel, selectedService) {
-                            val displayName = selectedModel.removeSuffix(":free")
-                                .substringAfter('/')
-                                .split("-")
-                                .joinToString(" ") { word ->
-                                    word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
-                                }
-                            
-                            if (selectedService == AiServiceType.OPENROUTER) {
-                                if (displayName.equals("Free", ignoreCase = true) || selectedModel == "openrouter/free") {
-                                    "OpenRouter"
-                                } else {
-                                    displayName
-                                }
-                            } else {
-                                displayName
-                            }
-                        }
-                        Spacer(modifier = Modifier.width(24.dp))
-                        Text(
-                            text = formattedModel,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f),
-                            textAlign = TextAlign.End
-                        )
-                    }
-                }
-            }
-
-            // Error message - shown as a non-blocking banner below the header
-            if (uiState is ChatUiState.Error) {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(8.dp)
-                        .clickable { viewModel.clearError() },
-                    shape = RoundedCornerShape(8.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = (uiState as ChatUiState.Error).message,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            modifier = Modifier.weight(1f),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        IconButton(
-                            onClick = { viewModel.clearError() },
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Dismiss",
-                                tint = MaterialTheme.colorScheme.onErrorContainer,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Messages list
             LazyColumn(
                 state = listState,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
                     .padding(horizontal = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 item { Spacer(modifier = Modifier.height(8.dp)) }
-                items(
-                    items = messages,
-                    key = { it.id }
-                ) { message ->
+                items(messages, key = { it.id }) { message ->
                     MessageBubble(
                         message = message,
                         isLiked = message.feedback,
@@ -417,16 +298,29 @@ fun MessageBubble(
                 }
             }
 
-            // Display current feedback icon below bubble
-            if (isLiked != null && !showFeedbackPopup) {
-                Icon(
-                    imageVector = if (isLiked) Icons.Default.Favorite else Icons.Default.HeartBroken,
-                    contentDescription = if (isLiked) "Loved" else "Disloved",
-                    tint = if (isLiked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                    modifier = Modifier
-                        .padding(top = 2.dp, start = 4.dp, end = 4.dp)
-                        .size(16.dp)
+            // Display current feedback icon and timestamp below bubble
+            Row(
+                modifier = Modifier
+                    .padding(top = 2.dp, start = 4.dp, end = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = if (message.isUser) Arrangement.End else Arrangement.Start
+            ) {
+                val sdf = remember { SimpleDateFormat("MMM dd, yyyy HH:mm:ss", Locale.getDefault()) }
+                Text(
+                    text = sdf.format(Date(message.timestamp)),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                 )
+
+                if (isLiked != null && !showFeedbackPopup) {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(
+                        imageVector = if (isLiked) Icons.Default.Favorite else Icons.Default.HeartBroken,
+                        contentDescription = if (isLiked) "Loved" else "Disloved",
+                        tint = if (isLiked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
             }
         }
     }
@@ -456,26 +350,30 @@ fun ChatInput(
         )
 
         Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Attachment button
             IconButton(
-                onClick = onPickFile
+                onClick = onPickFile,
+                modifier = Modifier.size(48.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.AttachFile,
-                    contentDescription = "Attach file",
+                    contentDescription = "Attach File",
                     tint = MaterialTheme.colorScheme.primary
                 )
             }
 
-            Spacer(modifier = Modifier.width(4.dp))
-
             OutlinedTextField(
                 value = text,
                 onValueChange = { text = it },
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 4.dp),
                 placeholder = { Text("Type a message...") },
+                maxLines = 4,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                 keyboardActions = KeyboardActions(
                     onSend = {
@@ -488,11 +386,9 @@ fun ChatInput(
                 shape = RoundedCornerShape(24.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
                 )
             )
-
-            Spacer(modifier = Modifier.width(8.dp))
 
             IconButton(
                 onClick = {
@@ -501,7 +397,8 @@ fun ChatInput(
                         text = ""
                     }
                 },
-                enabled = (text.isNotBlank() || selectedAttachments.isNotEmpty())
+                enabled = !isLoading && (text.isNotBlank() || selectedAttachments.isNotEmpty()),
+                modifier = Modifier.size(48.dp)
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.Send,

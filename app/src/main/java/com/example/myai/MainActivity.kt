@@ -35,6 +35,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myai.presentation.chat.ChatScreen
 import com.example.myai.presentation.chat.ChatViewModel
 import com.example.myai.presentation.chat.ChatViewModelFactory
+import com.example.myai.presentation.favorites.FavoritesScreen
+import com.example.myai.presentation.favorites.FavoritesViewModel
+import com.example.myai.presentation.favorites.FavoritesViewModelFactory
 import com.example.myai.presentation.login.LoginScreen
 import com.example.myai.presentation.login.LoginViewModel
 import com.example.myai.presentation.login.LoginViewModelFactory
@@ -89,6 +92,9 @@ fun MainAppContent(
     val chatViewModel: ChatViewModel = viewModel(
         factory = ChatViewModelFactory(context)
     )
+    val favoritesViewModel: FavoritesViewModel = viewModel(
+        factory = FavoritesViewModelFactory(context)
+    )
 
     // Detect if keyboard is open to hide navigation bar
     val isKeyboardOpen = WindowInsets.ime.asPaddingValues().calculateBottomPadding() > 0.dp
@@ -110,9 +116,8 @@ fun MainAppContent(
                         profileViewModel = profileViewModel,
                         viewModel = chatViewModel
                     )
-                    AppDestinations.FAVORITES -> Greeting(
-                        name = "Favorites",
-                        modifier = Modifier.fillMaxSize()
+                    AppDestinations.FAVORITES -> FavoritesScreen(
+                        viewModel = favoritesViewModel
                     )
                     AppDestinations.PROFILE -> ProfileScreen(
                         onLogout = onLogout,
