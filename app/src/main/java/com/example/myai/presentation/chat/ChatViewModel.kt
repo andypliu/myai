@@ -18,8 +18,16 @@ import com.example.myai.data.ondevice.LiteRTLMEngine
 import com.example.myai.data.ondevice.ModelDownloadManager
 import com.example.myai.data.ondevice.AiCoreManager
 import com.example.myai.data.ondevice.AiCoreStatus
+import com.example.myai.data.local.AppDatabase
+import com.example.myai.data.local.MessageFeedback
+import com.example.myai.data.source.RoomChatDataSource
+import com.example.myai.data.repository.MessageRepositoryImpl
+import com.example.myai.domain.repository.MessageRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.onCompletion
@@ -40,12 +48,27 @@ class ChatViewModel(
     private val litertEngine = LiteRTLMEngine.getInstance(context)
     private val downloadManager = ModelDownloadManager.getInstance(context)
     private val aiCoreManager = AiCoreManager.getInstance(context)
+    private val database = AppDatabase.getDatabase(context)
+    private val feedbackDao = database.messageFeedbackDao()
+    private val messageRepository: MessageRepository = MessageRepositoryImpl(
+        RoomChatDataSource(database.messageDao())
+    )
 
     private val _uiState = MutableStateFlow<ChatUiState>(ChatUiState.Idle)
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
-    val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
+    val messages: StateFlow<List<ChatMessage>> = combine(
+        messageRepository.getMessages(),
+        feedbackDao.getAllFeedback()
+    ) { dbMsgs, feedbacks ->
+        val feedbackMap = feedbacks.associate { it.messageId to it.isLiked }
+        dbMsgs.map { it.copy(feedback = feedbackMap[it.id]) }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
 
     private val _selectedModel = MutableStateFlow("")
     val selectedModel: StateFlow<String> = _selectedModel.asStateFlow()
@@ -60,6 +83,10 @@ class ChatViewModel(
     val newMessageId: StateFlow<String?> = _newMessageId.asStateFlow()
 
     private val pendingRequests = MutableStateFlow(0)
+
+    init {
+        // Initialization if needed
+    }
 
     fun setSelectedModel(model: String) {
         _selectedModel.value = model
@@ -103,7 +130,7 @@ class ChatViewModel(
                 isUser = true,
                 attachments = attachmentsWithBase64.takeIf { it.isNotEmpty() }
             )
-            _messages.update { it + userMessage }
+            messageRepository.saveMessage(userMessage)
 
             // Notify that a new message was added
             _newMessageId.value = userMessage.id
@@ -121,13 +148,15 @@ class ChatViewModel(
                 isUser = false,
                 isTyping = true
             )
-            _messages.update { it + typingMessage }
+            messageRepository.saveMessage(typingMessage)
 
             val currentModel = _selectedModel.value
             try {
                 if (_selectedService.value == AiServiceType.ON_DEVICE) {
                     if (!downloadManager.isModelDownloaded()) {
-                        _messages.update { list -> list.filter { it.id != assistantMessageId } }
+                        viewModelScope.launch {
+                            messageRepository.deleteMessage(assistantMessageId)
+                        }
                         _uiState.value = ChatUiState.Error("Model not downloaded. Go to Profile to download.", currentModel)
                         return@launch
                     }
@@ -139,26 +168,29 @@ class ChatViewModel(
                                 _newMessageId.value = assistantMessageId
                             }
                             .collect { chunk ->
-                                _messages.update { list ->
-                                    list.map { msg ->
-                                        if (msg.id == assistantMessageId) {
-                                            val newContent = msg.content + chunk
-                                            msg.copy(
-                                                content = newContent,
-                                                isTyping = newContent.isEmpty()
-                                            )
-                                        } else msg
-                                    }
+                                val currentMsgs = (messages.value)
+                                currentMsgs.find { it.id == assistantMessageId }?.let { msg ->
+                                    val newContent = msg.content + chunk
+                                    messageRepository.saveMessage(
+                                        msg.copy(
+                                            content = newContent,
+                                            isTyping = newContent.isEmpty()
+                                        )
+                                    )
                                 }
                             }
                     } catch (e: Exception) {
-                        _messages.update { list -> list.filter { it.id != assistantMessageId } }
+                        viewModelScope.launch {
+                            messageRepository.deleteMessage(assistantMessageId)
+                        }
                         _uiState.value = ChatUiState.Error("Inference failed: ${e.message}", currentModel)
                     }
                 } else if (_selectedService.value == AiServiceType.AICORE) {
                     val status = aiCoreManager.checkStatus()
                     if (status !is AiCoreStatus.Available) {
-                        _messages.update { list -> list.filter { it.id != assistantMessageId } }
+                        viewModelScope.launch {
+                            messageRepository.deleteMessage(assistantMessageId)
+                        }
                         val errorMsg = when(status) {
                             is AiCoreStatus.AiCoreMissing -> "AI Core not installed. Go to Profile."
                             is AiCoreStatus.ModelDownloading -> "Model downloading. Please wait."
@@ -176,20 +208,21 @@ class ChatViewModel(
                                 _newMessageId.value = assistantMessageId
                             }
                             .collect { chunk ->
-                                _messages.update { list ->
-                                    list.map { msg ->
-                                        if (msg.id == assistantMessageId) {
-                                            val newContent = msg.content + chunk
-                                            msg.copy(
-                                                content = newContent,
-                                                isTyping = newContent.isEmpty()
-                                            )
-                                        } else msg
-                                    }
+                                val currentMsgs = (messages.value)
+                                currentMsgs.find { it.id == assistantMessageId }?.let { msg ->
+                                    val newContent = msg.content + chunk
+                                    messageRepository.saveMessage(
+                                        msg.copy(
+                                            content = newContent,
+                                            isTyping = newContent.isEmpty()
+                                        )
+                                    )
                                 }
                             }
                     } catch (e: Exception) {
-                        _messages.update { list -> list.filter { it.id != assistantMessageId } }
+                        viewModelScope.launch {
+                            messageRepository.deleteMessage(assistantMessageId)
+                        }
                         _uiState.value = ChatUiState.Error("AI Core error: ${e.message}", currentModel)
                     }
                 } else if (_selectedService.value == AiServiceType.NVIDIA) {
@@ -205,7 +238,9 @@ class ChatViewModel(
                         }
                         .catch { error ->
                             android.util.Log.e("ChatViewModel", "Error in stream", error)
-                            _messages.update { list -> list.filter { it.id != assistantMessageId } }
+                            viewModelScope.launch {
+                                messageRepository.deleteMessage(assistantMessageId)
+                            }
                             val errorMessage = if (error is java.net.SocketTimeoutException) {
                                 "Timeout, please try again later."
                             } else {
@@ -214,19 +249,22 @@ class ChatViewModel(
                             _uiState.value = ChatUiState.Error(errorMessage, currentModel)
                         }
                         .onCompletion {
+                            val currentMsgs = (messages.value)
+                            currentMsgs.find { it.id == assistantMessageId }?.let { msg ->
+                                messageRepository.saveMessage(msg.copy(timestamp = System.currentTimeMillis()))
+                            }
                             _newMessageId.value = assistantMessageId
                         }
                         .collect { chunk ->
-                            _messages.update { list ->
-                                list.map { msg ->
-                                    if (msg.id == assistantMessageId) {
-                                        val newContent = msg.content + chunk
-                                        msg.copy(
-                                            content = newContent,
-                                            isTyping = newContent.isEmpty()
-                                        )
-                                    } else msg
-                                }
+                            val currentMsgs = (messages.value)
+                            currentMsgs.find { it.id == assistantMessageId }?.let { msg ->
+                                val newContent = msg.content + chunk
+                                messageRepository.saveMessage(
+                                    msg.copy(
+                                        content = newContent,
+                                        isTyping = newContent.isEmpty()
+                                    )
+                                )
                             }
                         }
                 } else {
@@ -241,13 +279,16 @@ class ChatViewModel(
                     result.fold(
                         onSuccess = { response ->
                             android.util.Log.d("ChatViewModel", "Response received: ${response}...")
-                            // Remove typing indicator and add actual response
-                            _messages.update { list ->
-                                list.map { msg ->
-                                    if (msg.id == assistantMessageId) {
-                                        msg.copy(content = response, isTyping = false)
-                                    } else msg
-                                }
+                            // Remove typing indicator and add actual response with new timestamp
+                            val currentMsgs = (messages.value)
+                            currentMsgs.find { it.id == assistantMessageId }?.let { msg ->
+                                messageRepository.saveMessage(
+                                    msg.copy(
+                                        content = response,
+                                        isTyping = false,
+                                        timestamp = System.currentTimeMillis()
+                                    )
+                                )
                             }
 
                             // Notify that a new message was added
@@ -256,7 +297,9 @@ class ChatViewModel(
                         onFailure = { error ->
                             android.util.Log.e("ChatViewModel", "Error sending message", error)
                             // Remove typing indicator on error
-                            _messages.update { list -> list.filter { it.id != assistantMessageId } }
+                            viewModelScope.launch {
+                                messageRepository.deleteMessage(assistantMessageId)
+                            }
                             val errorMessage = if (error is java.net.SocketTimeoutException) {
                                 "Timeout, please try again later."
                             } else {
@@ -277,6 +320,26 @@ class ChatViewModel(
 
     fun clearError() {
         _uiState.value = ChatUiState.Idle
+    }
+
+    fun toggleFeedback(messageId: String, isLiked: Boolean) {
+        val message = messages.value.find { it.id == messageId } ?: return
+        viewModelScope.launch {
+            val currentFeedback = feedbackDao.getFeedbackForMessage(messageId)
+            if (currentFeedback?.isLiked == isLiked) {
+                // If clicking the same button, remove feedback
+                feedbackDao.deleteFeedback(messageId)
+            } else {
+                val feedback = MessageFeedback(
+                    messageId = message.id,
+                    model = _selectedModel.value,
+                    content = message.content,
+                    timestamp = message.timestamp,
+                    isLiked = isLiked
+                )
+                feedbackDao.insertFeedback(feedback)
+            }
+        }
     }
 
     override fun onCleared() {

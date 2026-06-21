@@ -3,6 +3,7 @@ import java.util.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -90,6 +91,12 @@ dependencies {
 
     // Material Icons
     implementation("androidx.compose.material:material-icons-extended:1.6.0")
+
+    // Room
+    val roomVersion = "2.7.0-alpha11"
+    implementation("androidx.room:room-runtime:$roomVersion")
+    implementation("androidx.room:room-ktx:$roomVersion")
+    ksp("androidx.room:room-compiler:$roomVersion")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

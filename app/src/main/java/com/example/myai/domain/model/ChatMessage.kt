@@ -6,5 +6,6 @@ data class ChatMessage(
     val isUser: Boolean,
     val isTyping: Boolean = false,
     val attachments: List<FileAttachment>? = null,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val feedback: Boolean? = null // true for like, false for dislike, null for none
 )

@@ -45,6 +45,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.HeartBroken
+import androidx.compose.material.icons.outlined.Favorite
+import androidx.compose.material.icons.outlined.HeartBroken
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -260,7 +264,11 @@ fun ChatScreen(
                     items = messages,
                     key = { it.id }
                 ) { message ->
-                    MessageBubble(message = message)
+                    MessageBubble(
+                        message = message,
+                        isLiked = message.feedback,
+                        onFeedback = { isLiked -> viewModel.toggleFeedback(message.id, isLiked) }
+                    )
                 }
                 item { Spacer(modifier = Modifier.height(8.dp)) }
             }
@@ -280,7 +288,11 @@ fun ChatScreen(
 }
 
 @Composable
-fun MessageBubble(message: ChatMessage) {
+fun MessageBubble(
+    message: ChatMessage,
+    isLiked: Boolean? = null,
+    onFeedback: (Boolean) -> Unit = {}
+) {
     val configuration = LocalConfiguration.current
     val alignment = if (message.isUser) Alignment.CenterEnd else Alignment.CenterStart
     val backgroundColor = if (message.isUser) {
@@ -293,6 +305,8 @@ fun MessageBubble(message: ChatMessage) {
     } else {
         MaterialTheme.colorScheme.onSecondaryContainer
     }
+
+    var showFeedbackPopup by remember { mutableStateOf(false) }
 
     // Animated dots for typing indicator
     var dotCount by remember { mutableIntStateOf(1) }
@@ -315,34 +329,104 @@ fun MessageBubble(message: ChatMessage) {
         modifier = Modifier.fillMaxWidth(),
         contentAlignment = alignment
     ) {
-        Card(
-            shape = MessageBubbleShape(message.isUser),
-            colors = CardDefaults.cardColors(containerColor = backgroundColor),
+        Column(
             modifier = Modifier
-                .widthIn(max = (configuration.screenWidthDp.dp * 0.8f))
-                .wrapContentWidth()
-                .padding(horizontal = 8.dp)
+                .widthIn(max = (configuration.screenWidthDp.dp * 0.85f))
+                .padding(horizontal = 8.dp),
+            horizontalAlignment = if (message.isUser) Alignment.End else Alignment.Start
         ) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                // Display attachments
-                message.attachments?.let { attachments ->
-                    AttachmentPreview(
-                        attachments = attachments,
-                        onRemoveAttachment = {},
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                }
+            Card(
+                shape = MessageBubbleShape(message.isUser),
+                colors = CardDefaults.cardColors(containerColor = backgroundColor),
+                modifier = Modifier
+                    .widthIn(max = (configuration.screenWidthDp.dp * 0.8f))
+                    .wrapContentWidth()
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onLongPress = {
+                                if (!message.isUser && !message.isTyping) {
+                                    showFeedbackPopup = !showFeedbackPopup
+                                }
+                            }
+                        )
+                    }
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    // Display attachments
+                    message.attachments?.let { attachments ->
+                        AttachmentPreview(
+                            attachments = attachments,
+                            onRemoveAttachment = {},
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                    }
 
-                // Display message content
-                if (displayContent.isNotBlank()) {
-                    SelectionContainer {
-                        Text(
-                            text = displayContent,
-                            color = textColor,
-                            style = MaterialTheme.typography.bodyMedium
+                    // Display message content
+                    if (displayContent.isNotBlank()) {
+                        SelectionContainer {
+                            Text(
+                                text = displayContent,
+                                color = textColor,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Feedback selection popup
+            if (showFeedbackPopup) {
+                Row(
+                    modifier = Modifier
+                        .padding(top = 4.dp)
+                        .background(
+                            MaterialTheme.colorScheme.surfaceVariant,
+                            RoundedCornerShape(16.dp)
+                        )
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    IconButton(
+                        onClick = {
+                            onFeedback(true)
+                            showFeedbackPopup = false
+                        },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isLiked == true) Icons.Default.Favorite else Icons.Outlined.Favorite,
+                            contentDescription = "Love",
+                            tint = if (isLiked == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            onFeedback(false)
+                            showFeedbackPopup = false
+                        },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isLiked == false) Icons.Default.HeartBroken else Icons.Outlined.HeartBroken,
+                            contentDescription = "Dislove",
+                            tint = if (isLiked == false) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
+            }
+
+            // Display current feedback icon below bubble
+            if (isLiked != null && !showFeedbackPopup) {
+                Icon(
+                    imageVector = if (isLiked) Icons.Default.Favorite else Icons.Default.HeartBroken,
+                    contentDescription = if (isLiked) "Loved" else "Disloved",
+                    tint = if (isLiked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                    modifier = Modifier
+                        .padding(top = 2.dp, start = 4.dp, end = 4.dp)
+                        .size(16.dp)
+                )
             }
         }
     }
