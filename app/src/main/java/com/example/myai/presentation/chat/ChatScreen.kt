@@ -32,7 +32,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Close
@@ -54,6 +53,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -66,6 +66,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -79,7 +80,6 @@ import com.example.myai.domain.model.FileAttachment
 import com.example.myai.domain.model.AiServiceType
 import com.example.myai.presentation.profile.ProfileViewModel
 import com.example.myai.domain.util.FileProcessor
-import com.example.myai.ui.theme.GreenDark
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -106,8 +106,12 @@ fun ChatScreen(
     val newMessageId by viewModel.newMessageId.collectAsState()
     val focusManager = LocalFocusManager.current
 
-    // Detect if keyboard is open to scroll to bottom
-    val isKeyboardOpen = WindowInsets.ime.asPaddingValues().calculateBottomPadding() > 0.dp
+    // Detect if keyboard is open to scroll to bottom without excessive recompositions
+    val density = LocalDensity.current
+    val ime = WindowInsets.ime
+    val isKeyboardOpen by remember(ime, density) {
+        derivedStateOf { ime.getBottom(density) > 0 }
+    }
 
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -121,6 +125,7 @@ fun ChatScreen(
     // Scroll to bottom when a new message is added or keyboard is opened
     LaunchedEffect(messages.size, newMessageId, isKeyboardOpen) {
         if (messages.isNotEmpty()) {
+            delay(100) // Give layout a moment to settle
             listState.animateScrollToItem(messages.size - 1)
         }
     }
@@ -133,8 +138,25 @@ fun ChatScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = 8.dp)
         ) {
+            // Sticky Header
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.primary)
+            ) {
+                Text(
+                    text = "Chat with AI",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(16.dp),
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    textAlign = TextAlign.Start
+                )
+            }
+
             LazyColumn(
                 state = listState,
                 modifier = Modifier
@@ -148,7 +170,10 @@ fun ChatScreen(
                     MessageBubble(
                         message = message,
                         isLiked = message.feedback,
-                        onFeedback = { isLiked -> viewModel.toggleFeedback(message.id, isLiked) }
+                        onFeedback = { isLiked -> 
+                            if (isLiked == null) viewModel.removeFeedback(message.id)
+                            else viewModel.toggleFeedback(message.id, isLiked)
+                        }
                     )
                 }
                 item { Spacer(modifier = Modifier.height(8.dp)) }
@@ -172,7 +197,7 @@ fun ChatScreen(
 fun MessageBubble(
     message: ChatMessage,
     isLiked: Boolean? = null,
-    onFeedback: (Boolean) -> Unit = {}
+    onFeedback: (Boolean?) -> Unit = {}
 ) {
     val configuration = LocalConfiguration.current
     val alignment = if (message.isUser) Alignment.CenterEnd else Alignment.CenterStart
@@ -222,7 +247,7 @@ fun MessageBubble(
                 modifier = Modifier
                     .widthIn(max = (configuration.screenWidthDp.dp * 0.8f))
                     .wrapContentWidth()
-                    .pointerInput(Unit) {
+                    .pointerInput(message.id) {
                         detectTapGestures(
                             onLongPress = {
                                 if (!message.isUser && !message.isTyping) {
@@ -244,13 +269,11 @@ fun MessageBubble(
 
                     // Display message content
                     if (displayContent.isNotBlank()) {
-                        SelectionContainer {
-                            Text(
-                                text = displayContent,
-                                color = textColor,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
+                        Text(
+                            text = displayContent,
+                            color = textColor,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
                     }
                 }
             }
@@ -292,6 +315,20 @@ fun MessageBubble(
                             imageVector = if (isLiked == false) Icons.Default.HeartBroken else Icons.Outlined.HeartBroken,
                             contentDescription = "Dislove",
                             tint = if (isLiked == false) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            onFeedback(null)
+                            showFeedbackPopup = false
+                        },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Dismiss",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(20.dp)
                         )
                     }

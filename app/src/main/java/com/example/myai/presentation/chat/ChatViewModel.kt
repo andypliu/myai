@@ -322,6 +322,12 @@ class ChatViewModel(
         _uiState.value = ChatUiState.Idle
     }
 
+    fun removeFeedback(messageId: String) {
+        viewModelScope.launch {
+            feedbackDao.deleteFeedback(messageId)
+        }
+    }
+
     fun toggleFeedback(messageId: String, isLiked: Boolean) {
         val message = messages.value.find { it.id == messageId } ?: return
         viewModelScope.launch {
