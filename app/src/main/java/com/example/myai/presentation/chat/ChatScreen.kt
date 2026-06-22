@@ -48,6 +48,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.HeartBroken
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.HeartBroken
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -170,10 +171,11 @@ fun ChatScreen(
                     MessageBubble(
                         message = message,
                         isLiked = message.feedback,
-                        onFeedback = { isLiked -> 
+                        onFeedback = { isLiked ->
                             if (isLiked == null) viewModel.removeFeedback(message.id)
                             else viewModel.toggleFeedback(message.id, isLiked)
-                        }
+                        },
+                        onDelete = { viewModel.deleteMessage(message.id) }
                     )
                 }
                 item { Spacer(modifier = Modifier.height(8.dp)) }
@@ -197,7 +199,8 @@ fun ChatScreen(
 fun MessageBubble(
     message: ChatMessage,
     isLiked: Boolean? = null,
-    onFeedback: (Boolean?) -> Unit = {}
+    onFeedback: (Boolean?) -> Unit = {},
+    onDelete: () -> Unit = {}
 ) {
     val configuration = LocalConfiguration.current
     val alignment = if (message.isUser) Alignment.CenterEnd else Alignment.CenterStart
@@ -328,6 +331,20 @@ fun MessageBubble(
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Dismiss",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            onDelete()
+                            showFeedbackPopup = false
+                        },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Delete,
+                            contentDescription = "Delete",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(20.dp)
                         )

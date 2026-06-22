@@ -104,6 +104,13 @@ class ChatViewModel(
         _selectedAttachments.value = _selectedAttachments.value.filter { it.id != attachment.id }
     }
 
+    fun deleteMessage(messageId: String) {
+        viewModelScope.launch {
+            messageRepository.deleteMessage(messageId)
+            feedbackDao.deleteFeedback(messageId)
+        }
+    }
+
     fun sendMessage(message: String, context: Context? = null) {
         if (message.isBlank() && _selectedAttachments.value.isEmpty()) return
 

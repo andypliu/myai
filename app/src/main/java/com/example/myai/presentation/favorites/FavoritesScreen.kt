@@ -29,6 +29,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.HeartBroken
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.HeartBroken
 import androidx.compose.material3.Card
@@ -133,6 +134,7 @@ fun FavoritesScreen(
                             if (isLiked == null) viewModel.removeFavorite(message.messageId)
                             else viewModel.toggleFeedback(message.messageId, isLiked)
                         },
+                        onDelete = { viewModel.deleteMessage(message.messageId) },
                         modifier = Modifier.animateItem(
                             fadeOutSpec = tween(durationMillis = 6000), // Keep bubbles alive while shifting
                             placementSpec = tween(durationMillis = 300) // Snappy, immediate shift up
@@ -148,6 +150,7 @@ fun FavoritesScreen(
 fun LovedMessageItem(
     message: MessageFeedback,
     onFeedback: (Boolean?) -> Unit,
+    onDelete: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var showFeedbackPopup by remember { mutableStateOf(false) }
@@ -307,6 +310,20 @@ fun LovedMessageItem(
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Dismiss",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            onDelete()
+                            showFeedbackPopup = false
+                        },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Delete,
+                            contentDescription = "Delete",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(20.dp)
                         )
