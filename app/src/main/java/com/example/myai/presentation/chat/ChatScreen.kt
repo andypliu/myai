@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -146,39 +147,94 @@ fun ChatScreen(
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.primary)
             ) {
-                Text(
-                    text = "Chat with AI",
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .statusBarsPadding()
                         .padding(16.dp),
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    textAlign = TextAlign.Start
-                )
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Chat with AI",
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        textAlign = TextAlign.Start,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    // Display selected model name
+                    if (selectedModel.isNotEmpty()) {
+                        val formattedModel = remember(selectedModel, selectedService) {
+                            val displayName = selectedModel.removeSuffix(":free")
+                                .substringAfter('/')
+                                .split("-")
+                                .joinToString(" ") { word ->
+                                    word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+                                }
+
+                            if (selectedService == AiServiceType.OPENROUTER) {
+                                if (displayName.equals("Free", ignoreCase = true) || selectedModel == "openrouter/free") {
+                                    "OpenRouter"
+                                } else {
+                                    displayName
+                                }
+                            } else {
+                                displayName
+                            }
+                        }
+                        Text(
+                            text = formattedModel,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = TextAlign.End
+                        )
+                    }
+                }
             }
 
-            LazyColumn(
-                state = listState,
+            Box(
                 modifier = Modifier
-                    .weight(1f)
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                    .weight(1f)
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onTap = {
+                                focusManager.clearFocus()
+                            }
+                        )
+                    }
             ) {
-                item { Spacer(modifier = Modifier.height(8.dp)) }
-                items(messages, key = { it.id }) { message ->
-                    MessageBubble(
-                        message = message,
-                        isLiked = message.feedback,
-                        onFeedback = { isLiked ->
-                            if (isLiked == null) viewModel.removeFeedback(message.id)
-                            else viewModel.toggleFeedback(message.id, isLiked)
-                        },
-                        onDelete = { viewModel.deleteMessage(message.id) }
-                    )
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    item { Spacer(modifier = Modifier.height(8.dp)) }
+                    itemsIndexed(messages, key = { _, item -> item.id }) { index, message ->
+                        val showFullDate = if (index == 0) true else {
+                            val prev = messages[index - 1]
+                            val prevDate = java.util.Calendar.getInstance().apply { timeInMillis = prev.timestamp }
+                            val currDate = java.util.Calendar.getInstance().apply { timeInMillis = message.timestamp }
+                            prevDate.get(java.util.Calendar.YEAR) != currDate.get(java.util.Calendar.YEAR) ||
+                            prevDate.get(java.util.Calendar.DAY_OF_YEAR) != currDate.get(java.util.Calendar.DAY_OF_YEAR)
+                        }
+                        MessageBubble(
+                            message = message,
+                            isLiked = message.feedback,
+                            showFullDate = showFullDate,
+                            onFeedback = { isLiked ->
+                                if (isLiked == null) viewModel.removeFeedback(message.id)
+                                else viewModel.toggleFeedback(message.id, isLiked)
+                            },
+                            onDelete = { viewModel.deleteMessage(message.id) }
+                        )
+                    }
+                    item { Spacer(modifier = Modifier.height(8.dp)) }
                 }
-                item { Spacer(modifier = Modifier.height(8.dp)) }
             }
 
             // Input area
@@ -199,6 +255,7 @@ fun ChatScreen(
 fun MessageBubble(
     message: ChatMessage,
     isLiked: Boolean? = null,
+    showFullDate: Boolean = true,
     onFeedback: (Boolean?) -> Unit = {},
     onDelete: () -> Unit = {}
 ) {
@@ -359,7 +416,10 @@ fun MessageBubble(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = if (message.isUser) Arrangement.End else Arrangement.Start
             ) {
-                val sdf = remember { SimpleDateFormat("MMM dd, yyyy HH:mm:ss", Locale.getDefault()) }
+                val sdf = remember(showFullDate) {
+                    if (showFullDate) SimpleDateFormat("MMM dd, yyyy HH:mm:ss", Locale.getDefault())
+                    else SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+                }
                 Text(
                     text = sdf.format(Date(message.timestamp)),
                     style = MaterialTheme.typography.labelSmall,
